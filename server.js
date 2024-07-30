@@ -39,7 +39,7 @@ async function analyzeImage(imagePath) {
   const imageBuffer = await fs.readFile(imagePath);
   const base64Image = imageBuffer.toString('base64');
 
-  const message = await anthropic.messages.create({
+  const response = await anthropic.messages.create({
     model: "claude-3-opus-20240229",
     max_tokens: 1000,
     messages: [
@@ -63,7 +63,7 @@ async function analyzeImage(imagePath) {
     ]
   });
 
-  return message.content;
+  return response.content[0].text;
 }
 
 async function generateDesigns(description) {
