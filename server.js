@@ -11,6 +11,16 @@ dotenv.config();
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error('Anthropic API key is not set in environment variables');
+  process.exit(1);
+}
+
+if (!process.env.OPENAI_API_KEY) {
+  console.error('OpenAI API key is not set in environment variables');
+  process.exit(1);
+}
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -45,7 +55,7 @@ async function analyzeImage(imagePath) {
     console.log('Anthropic beta methods:', Object.keys(anthropic.beta));
 
     const message = await anthropic.beta.messages.create({
-      model: "claude-3-sonnet-20240320",
+      model: "claude-3-5-sonnet-20240620",
       max_tokens: 1024,
       messages: [
         {
@@ -99,8 +109,8 @@ async function generateDesigns(description) {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? 'Set' : 'Not set');
-  console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
+  console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? `Set (${process.env.ANTHROPIC_API_KEY.substr(0, 5)}...)` : 'Not set');
+  console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? `Set (${process.env.OPENAI_API_KEY.substr(0, 5)}...)` : 'Not set');
   console.log('Anthropic client methods:', Object.keys(anthropic));
   console.log('Anthropic beta methods:', Object.keys(anthropic.beta));
 });
