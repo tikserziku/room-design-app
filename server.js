@@ -61,7 +61,7 @@ async function analyzeImage(imagePath) {
     console.log('Image type:', imageType.mime);
 
     const message = await anthropic.beta.messages.create({
-      model: "claude-3-sonnet-20240320",
+      model: "claude-3-5-sonnet-20240620",
       max_tokens: 1024,
       messages: [
         {
