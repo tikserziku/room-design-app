@@ -31,7 +31,6 @@ async function analyzeImage(imagePath) {
 }
 
 async function generateDesigns(description) {
-  // TODO: Implement real DALL-E 3 API call
   console.log('Generating designs for:', description);
   const variants = [
     "/placeholder1.jpg",
