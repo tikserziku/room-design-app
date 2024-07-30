@@ -66,17 +66,6 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
   }
 });
 
-app.get('/task/:taskId', (req, res) => {
-  const taskId = req.params.taskId;
-  const task = tasks.get(taskId);
-
-  if (!task) {
-    res.status(404).json({ error: 'Task not found' });
-  } else {
-    res.json(task);
-  }
-});
-
 async function processImageAsync(taskId, imagePath) {
   try {
     const analysisResult = await analyzeImage(imagePath);
@@ -94,68 +83,11 @@ async function processImageAsync(taskId, imagePath) {
 }
 
 async function analyzeImage(imagePath) {
-  try {
-    const imageBuffer = await fs.readFile(imagePath);
-    const imageType = await fileType.fromBuffer(imageBuffer);
-    
-    if (!imageType || !['image/jpeg', 'image/png'].includes(imageType.mime)) {
-      throw new Error('Unsupported image format. Please upload a JPEG or PNG image.');
-    }
-
-    const base64Image = imageBuffer.toString('base64');
-    console.log('Sending request to Anthropic API...');
-    console.log('Image type:', imageType.mime);
-
-    const message = await anthropic.beta.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: imageType.mime,
-                data: base64Image
-              }
-            },
-            {
-              type: "text",
-              text: "Analyze this room image and provide a detailed description focusing on the style, colors, furniture, and overall ambiance. Then, suggest three different design concepts that could enhance or transform this room."
-            }
-          ]
-        }
-      ]
-    });
-
-    console.log('Received response from Anthropic API');
-    return message.content[0].text;
-  } catch (error) {
-    console.error('Error calling Anthropic API:', error);
-    throw error;
-  }
+  // ... (оставьте эту функцию без изменений)
 }
 
 async function generateDesigns(description) {
-  const designs = [];
-  try {
-    for (let i = 0; i < 3; i++) {
-      console.log(`Generating design ${i + 1}...`);
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: `Based on this description: ${description}. Generate a new, unique room design concept. The image should be photorealistic and highly detailed.`,
-        n: 1,
-        size: "1024x1024",
-      });
-      designs.push(response.data[0].url);
-    }
-    return designs;
-  } catch (error) {
-    console.error('Error generating designs:', error);
-    throw error;
-  }
+  // ... (оставьте эту функцию без изменений)
 }
 
 const PORT = process.env.PORT || 3000;
