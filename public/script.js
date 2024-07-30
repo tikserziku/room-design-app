@@ -1,33 +1,54 @@
+const socket = io();
+
 document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const loadingDiv = document.getElementById('loading');
-    const resultsDiv = document.getElementById('results');
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  
+  try {
+    const response = await fetch('/upload', {
+      method: 'POST',
+      body: formData
+    });
     
-    loadingDiv.style.display = 'block';
-    resultsDiv.innerHTML = '';
-    
-    try {
-        const response = await fetch('/upload', {
-            method: 'POST',
-            body: formData
-        });
-        if (!response.ok) {
-            throw new Error('Server error');
-        }
-        const data = await response.json();
-        
-        if (data.error) {
-            resultsDiv.innerHTML = `Error: ${data.error}`;
-        } else if (data.variants && data.variants.length) {
-            resultsDiv.innerHTML = data.variants.map(url => `<img src="${url}" alt="Design variant">`).join('');
-        } else {
-            resultsDiv.innerHTML = 'No variants generated';
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        resultsDiv.innerHTML = `Error: ${error.message}`;
-    } finally {
-        loadingDiv.style.display = 'none';
+    if (!response.ok) {
+      throw new Error('Upload failed');
     }
+    
+    const { taskId } = await response.json();
+    displayStatus('Обработка изображения...');
+    
+    socket.on('taskUpdate', (update) => {
+      if (update.taskId === taskId) {
+        if (update.status === 'analyzing') {
+          displayStatus(`Анализ изображения... ${update.progress}%`);
+        } else if (update.status === 'completed') {
+          displayResults(update.variants);
+        } else if (update.status === 'error') {
+          displayError(update.error);
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    displayError('Произошла ошибка при загрузке файла');
+  }
 });
+
+function displayStatus(message) {
+  document.getElementById('status').textContent = message;
+}
+
+function displayResults(variants) {
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '';
+  variants.forEach((url, index) => {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = `Design variant ${index + 1}`;
+    resultsDiv.appendChild(img);
+  });
+}
+
+function displayError(message) {
+  document.getElementById('error').textContent = message;
+}
