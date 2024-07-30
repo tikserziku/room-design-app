@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const { Anthropic } = require('@anthropic-ai/sdk');
+const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 
@@ -11,9 +11,7 @@ dotenv.config();
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const anthropic = new Anthropic(process.env.ANTHROPIC_API_KEY);
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -40,6 +38,9 @@ async function analyzeImage(imagePath) {
   const base64Image = imageBuffer.toString('base64');
 
   try {
+    console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? 'Set' : 'Not set');
+    console.log('Anthropic client:', anthropic ? 'Initialized' : 'Not initialized');
+
     const response = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20240620",
       max_tokens: 1000,
