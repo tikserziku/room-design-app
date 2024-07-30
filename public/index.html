@@ -12,8 +12,13 @@
         <input type="file" name="photo" accept="image/*" capture="environment">
         <button type="submit">Upload and Generate Designs</button>
     </form>
-    <div id="loading" style="display: none;">Uploading and processing...</div>
+    <div id="status"></div>
+    <div id="error"></div>
     <div id="results"></div>
+    
+    <!-- Добавьте эту строку для подключения Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    
     <script src="/script.js"></script>
 </body>
 </html>
