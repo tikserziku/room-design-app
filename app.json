@@ -1,1 +1,14 @@
-
+{
+  "name": "Room Design App",
+  "description": "Web app for room design analysis and generation",
+  "repository": "https://github.com/your-username/room-design-app",
+  "keywords": ["node", "express", "room design"],
+  "env": {
+    "IMAGE_ANALYSIS_API_KEY": {
+      "description": "API key for image analysis service"
+    },
+    "DALLE_API_KEY": {
+      "description": "API key for DALL-E 3"
+    }
+  }
+}
