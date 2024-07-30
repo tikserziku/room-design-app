@@ -33,9 +33,9 @@ async function generateDesigns(description) {
   // TODO: Implement real DALL-E 3 API call
   console.log('Generating designs for:', description);
   const variants = [
-    "/placeholder 1.jpg",
-    "/placeholder 2.jpg",
-    "/placeholder 3.jpg"
+    "/placeholder1.jpg",
+    "/placeholder2.jpg",
+    "/placeholder3.jpg"
   ];
   return variants;
 }
