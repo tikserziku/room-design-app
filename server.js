@@ -36,17 +36,14 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
 });
 
 async function analyzeImage(imagePath) {
-  const imageBuffer = await fs.readFile(imagePath);
-  const base64Image = imageBuffer.toString('base64');
-
   try {
-    console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? 'Set' : 'Not set');
-    console.log('Anthropic client:', anthropic ? 'Initialized' : 'Not initialized');
-    console.log('Anthropic client methods:', Object.keys(anthropic));
+    const imageBuffer = await fs.readFile(imagePath);
+    const base64Image = imageBuffer.toString('base64');
 
-    const response = await anthropic.beta.messages.create({
-      model: "claude-3-sonnet-20240320",
-      max_tokens: 1000,
+    console.log('Sending request to Anthropic API...');
+    const message = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20240620",
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
@@ -68,8 +65,8 @@ async function analyzeImage(imagePath) {
       ]
     });
 
-    console.log('Anthropic API Response:', JSON.stringify(response, null, 2));
-    return response.content[0].text;
+    console.log('Received response from Anthropic API');
+    return message.content[0].text;
   } catch (error) {
     console.error('Error calling Anthropic API:', error);
     throw error;
@@ -78,17 +75,27 @@ async function analyzeImage(imagePath) {
 
 async function generateDesigns(description) {
   const designs = [];
-  for (let i = 0; i < 3; i++) {
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: `Based on this description: ${description}. Generate a new, unique room design concept. The image should be photorealistic and highly detailed.`,
-      n: 1,
-      size: "1024x1024",
-    });
-    designs.push(response.data[0].url);
+  try {
+    for (let i = 0; i < 3; i++) {
+      console.log(`Generating design ${i + 1}...`);
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: `Based on this description: ${description}. Generate a new, unique room design concept. The image should be photorealistic and highly detailed.`,
+        n: 1,
+        size: "1024x1024",
+      });
+      designs.push(response.data[0].url);
+    }
+    return designs;
+  } catch (error) {
+    console.error('Error generating designs:', error);
+    throw error;
   }
-  return designs;
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? 'Set' : 'Not set');
+  console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
+});
