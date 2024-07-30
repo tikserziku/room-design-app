@@ -40,7 +40,7 @@ async function analyzeImage(imagePath) {
   const base64Image = imageBuffer.toString('base64');
 
   const response = await anthropic.messages.create({
-    model: "claude-3-opus-20240229",
+    model: "claude-3-5-sonnet-20240620",
     max_tokens: 1000,
     messages: [
       {
