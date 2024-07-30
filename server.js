@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const Anthropic = require('@anthropic-ai/sdk');
+const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 
@@ -39,31 +39,37 @@ async function analyzeImage(imagePath) {
   const imageBuffer = await fs.readFile(imagePath);
   const base64Image = imageBuffer.toString('base64');
 
-  const response = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-20240620",
-    max_tokens: 1000,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: "image/jpeg",
-              data: base64Image
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20240620",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/jpeg",
+                data: base64Image
+              }
+            },
+            {
+              type: "text",
+              text: "Analyze this room image and provide a detailed description focusing on the style, colors, furniture, and overall ambiance. Then, suggest three different design concepts that could enhance or transform this room."
             }
-          },
-          {
-            type: "text",
-            text: "Analyze this room image and provide a detailed description focusing on the style, colors, furniture, and overall ambiance. Then, suggest three different design concepts that could enhance or transform this room."
-          }
-        ]
-      }
-    ]
-  });
+          ]
+        }
+      ]
+    });
 
-  return response.content[0].text;
+    console.log('Anthropic API Response:', JSON.stringify(response, null, 2));
+    return response.content[0].text;
+  } catch (error) {
+    console.error('Error calling Anthropic API:', error);
+    throw error;
+  }
 }
 
 async function generateDesigns(description) {
