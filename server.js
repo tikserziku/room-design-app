@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
@@ -31,6 +30,7 @@ async function analyzeImage(imagePath) {
 }
 
 async function generateDesigns(description) {
+  // TODO: Implement real DALL-E 3 API call
   console.log('Generating designs for:', description);
   const variants = [
     "/placeholder1.jpg",
