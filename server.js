@@ -6,10 +6,16 @@ const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 const fileType = require('file-type');
+const http = require('http');
+const socketIo = require('socket.io');
+const { v4: uuidv4 } = require('uuid');
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
 const upload = multer({ dest: 'uploads/' });
 
 if (!process.env.ANTHROPIC_API_KEY) {
@@ -32,19 +38,60 @@ const openai = new OpenAI({
 
 app.use(express.static('public'));
 
+const tasks = new Map();
+
+io.on('connection', (socket) => {
+  console.log('A user connected');
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
+
 app.post('/upload', upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
       throw new Error('No file uploaded');
     }
-    const analysisResult = await analyzeImage(req.file.path);
-    const designVariants = await generateDesigns(analysisResult);
-    res.json({ variants: designVariants });
+
+    const taskId = uuidv4();
+    tasks.set(taskId, { status: 'processing' });
+
+    res.json({ taskId });
+
+    processImageAsync(taskId, req.file.path);
   } catch (error) {
     console.error('Error processing upload:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
+app.get('/task/:taskId', (req, res) => {
+  const taskId = req.params.taskId;
+  const task = tasks.get(taskId);
+
+  if (!task) {
+    res.status(404).json({ error: 'Task not found' });
+  } else {
+    res.json(task);
+  }
+});
+
+async function processImageAsync(taskId, imagePath) {
+  try {
+    const analysisResult = await analyzeImage(imagePath);
+    tasks.set(taskId, { status: 'analyzing', progress: 33 });
+    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 33 });
+
+    const designVariants = await generateDesigns(analysisResult);
+    tasks.set(taskId, { status: 'completed', variants: designVariants });
+    io.emit('taskUpdate', { taskId, status: 'completed', variants: designVariants });
+  } catch (error) {
+    console.error('Error processing image:', error);
+    tasks.set(taskId, { status: 'error', error: error.message });
+    io.emit('taskUpdate', { taskId, status: 'error', error: error.message });
+  }
+}
 
 async function analyzeImage(imagePath) {
   try {
@@ -56,7 +103,6 @@ async function analyzeImage(imagePath) {
     }
 
     const base64Image = imageBuffer.toString('base64');
-
     console.log('Sending request to Anthropic API...');
     console.log('Image type:', imageType.mime);
 
@@ -113,7 +159,7 @@ async function generateDesigns(description) {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? `Set (${process.env.ANTHROPIC_API_KEY.substr(0, 5)}...)` : 'Not set');
   console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? `Set (${process.env.OPENAI_API_KEY.substr(0, 5)}...)` : 'Not set');
