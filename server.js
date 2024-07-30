@@ -1,11 +1,23 @@
-require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const axios = require('axios');
+const fs = require('fs').promises;
+const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 app.use(express.static('public'));
 
@@ -24,20 +36,48 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
 });
 
 async function analyzeImage(imagePath) {
-  // TODO: Implement real image analysis
-  console.log('Analyzing image:', imagePath);
-  return "A modern living room with large windows";
+  const imageBuffer = await fs.readFile(imagePath);
+  const base64Image = imageBuffer.toString('base64');
+
+  const message = await anthropic.messages.create({
+    model: "claude-3-opus-20240229",
+    max_tokens: 1000,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/jpeg",
+              data: base64Image
+            }
+          },
+          {
+            type: "text",
+            text: "Analyze this room image and provide a detailed description focusing on the style, colors, furniture, and overall ambiance. Then, suggest three different design concepts that could enhance or transform this room."
+          }
+        ]
+      }
+    ]
+  });
+
+  return message.content;
 }
 
 async function generateDesigns(description) {
-  // TODO: Implement real DALL-E 3 API call
-  console.log('Generating designs for:', description);
-  const variants = [
-    "/placeholder1.jpg",
-    "/placeholder2.jpg",
-    "/placeholder3.jpg"
-  ];
-  return variants;
+  const designs = [];
+  for (let i = 0; i < 3; i++) {
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: `Based on this description: ${description}. Generate a new, unique room design concept. The image should be photorealistic and highly detailed.`,
+      n: 1,
+      size: "1024x1024",
+    });
+    designs.push(response.data[0].url);
+  }
+  return designs;
 }
 
 const PORT = process.env.PORT || 3000;
