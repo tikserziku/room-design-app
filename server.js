@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
+const fileType = require('file-type');
 
 dotenv.config();
 
@@ -48,14 +49,19 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
 async function analyzeImage(imagePath) {
   try {
     const imageBuffer = await fs.readFile(imagePath);
+    const imageType = await fileType.fromBuffer(imageBuffer);
+    
+    if (!imageType || !['image/jpeg', 'image/png'].includes(imageType.mime)) {
+      throw new Error('Unsupported image format. Please upload a JPEG or PNG image.');
+    }
+
     const base64Image = imageBuffer.toString('base64');
 
     console.log('Sending request to Anthropic API...');
-    console.log('Anthropic client methods:', Object.keys(anthropic));
-    console.log('Anthropic beta methods:', Object.keys(anthropic.beta));
+    console.log('Image type:', imageType.mime);
 
     const message = await anthropic.beta.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+      model: "claude-3-sonnet-20240320",
       max_tokens: 1024,
       messages: [
         {
@@ -65,7 +71,7 @@ async function analyzeImage(imagePath) {
               type: "image",
               source: {
                 type: "base64",
-                media_type: "image/jpeg",
+                media_type: imageType.mime,
                 data: base64Image
               }
             },
@@ -111,6 +117,4 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? `Set (${process.env.ANTHROPIC_API_KEY.substr(0, 5)}...)` : 'Not set');
   console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? `Set (${process.env.OPENAI_API_KEY.substr(0, 5)}...)` : 'Not set');
-  console.log('Anthropic client methods:', Object.keys(anthropic));
-  console.log('Anthropic beta methods:', Object.keys(anthropic.beta));
 });
