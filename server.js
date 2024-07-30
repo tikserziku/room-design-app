@@ -11,9 +11,7 @@ dotenv.config();
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const anthropic = new Anthropic(process.env.ANTHROPIC_API_KEY);
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -41,6 +39,8 @@ async function analyzeImage(imagePath) {
     const base64Image = imageBuffer.toString('base64');
 
     console.log('Sending request to Anthropic API...');
+    console.log('Anthropic client methods:', Object.keys(anthropic));
+
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20240620",
       max_tokens: 1024,
@@ -98,4 +98,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? 'Set' : 'Not set');
   console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
+  console.log('Anthropic client methods:', Object.keys(anthropic));
 });
