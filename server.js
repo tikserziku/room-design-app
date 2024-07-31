@@ -149,4 +149,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? `Set (${process.env.ANTHROPIC_API_KEY.substr(0, 5)}...)` : 'Not set');
-  console
+  console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? `Set (${process.env.OPENAI_API_KEY.substr(0, 5)}...)` : 'Not set');
+});
