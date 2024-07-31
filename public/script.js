@@ -4,6 +4,10 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const formData = new FormData(e.target);
   
+  // Очищаем предыдущие результаты
+  localStorage.removeItem('designVariants');
+  document.getElementById('results').innerHTML = '';
+  
   try {
     const response = await fetch('/upload', {
       method: 'POST',
