@@ -87,10 +87,12 @@ function displayThumbnail(file) {
         thumbnail.id = 'photoThumbnail';
         thumbnail.src = e.target.result;
         thumbnail.alt = 'Thumbnail';
-        thumbnail.className = 'w-12 h-12 object-cover rounded-full mt-2';
+        thumbnail.className = 'photo-thumbnail';
         
         const takePhotoButton = document.getElementById('takePhoto');
-        takePhotoButton.parentNode.insertBefore(thumbnail, takePhotoButton.nextSibling);
+        if (!document.getElementById('photoThumbnail')) {
+            takePhotoButton.insertAdjacentElement('afterend', thumbnail);
+        }
     }
     reader.readAsDataURL(file);
 }
