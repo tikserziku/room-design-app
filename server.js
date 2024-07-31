@@ -67,9 +67,9 @@ async function processImageAsync(taskId, imagePath) {
     const analysisResult = await analyzeImage(imagePath);
     tasks.set(taskId, { status: 'analyzing', progress: 33 });
     io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 33 });
-    const designVariants = await generateDesigns(analysisResult);
-    tasks.set(taskId, { status: 'completed', variants: designVariants });
-    io.emit('taskUpdate', { taskId, status: 'completed', variants: designVariants });
+    await generateDesigns(taskId, analysisResult);
+    tasks.set(taskId, { status: 'completed' });
+    io.emit('taskUpdate', { taskId, status: 'completed' });
   } catch (error) {
     console.error('Error processing image:', error);
     tasks.set(taskId, { status: 'error', error: error.message });
@@ -119,8 +119,7 @@ async function analyzeImage(imagePath) {
   }
 }
 
-async function generateDesigns(description) {
-  const designs = [];
+async function generateDesigns(taskId, description) {
   try {
     for (let i = 0; i < 3; i++) {
       console.log(`Generating design ${i + 1}...`);
@@ -130,9 +129,9 @@ async function generateDesigns(description) {
         n: 1,
         size: "1024x1024",
       });
-      designs.push(response.data[0].url);
+      const designUrl = response.data[0].url;
+      io.emit('designGenerated', { taskId, designUrl, index: i });
     }
-    return designs;
   } catch (error) {
     console.error('Error generating designs:', error);
     throw error;
