@@ -62,12 +62,20 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
   }
 });
 
+// ... (предыдущий код остается без изменений)
+
 async function processImageAsync(taskId, imagePath) {
   try {
+    tasks.set(taskId, { status: 'analyzing', progress: 0 });
+    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 0 });
+
     const analysisResult = await analyzeImage(imagePath);
-    tasks.set(taskId, { status: 'analyzing', progress: 33 });
-    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 33 });
+    
+    tasks.set(taskId, { status: 'analyzing', progress: 100 });
+    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 100 });
+
     await generateDesigns(taskId, analysisResult);
+    
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
   } catch (error) {
@@ -76,6 +84,8 @@ async function processImageAsync(taskId, imagePath) {
     io.emit('taskUpdate', { taskId, status: 'error', error: error.message });
   }
 }
+
+// ... (остальной код остается без изменений)
 
 async function analyzeImage(imagePath) {
   try {
