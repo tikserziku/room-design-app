@@ -6,24 +6,77 @@ document.getElementById('uploadPhoto').addEventListener('click', () => {
     document.getElementById('fileInput').click();
 });
 
-document.getElementById('takePhoto').addEventListener('click', () => {
-    alert('Функция съемки фото будет добавлена позже');
-});
+document.getElementById('takePhoto').addEventListener('click', initCamera);
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-        document.getElementById('generateDesign').disabled = false;
-        document.getElementById('generateDesign').classList.remove('opacity-50', 'cursor-not-allowed');
+        enableGenerateButton();
     }
 });
 
 document.getElementById('generateDesign').addEventListener('click', handleGenerateDesign);
 
+// Функция для инициализации камеры
+function initCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Ваше устройство не поддерживает использование камеры');
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+            const videoElement = document.createElement('video');
+            videoElement.srcObject = stream;
+            videoElement.play();
+
+            const captureButton = document.createElement('button');
+            captureButton.textContent = 'Сделать снимок';
+            captureButton.addEventListener('click', () => capturePhoto(videoElement, stream));
+
+            const container = document.createElement('div');
+            container.appendChild(videoElement);
+            container.appendChild(captureButton);
+
+            document.body.appendChild(container);
+        })
+        .catch(error => {
+            console.error('Ошибка доступа к камере:', error);
+            alert('Не удалось получить доступ к камере');
+        });
+}
+
+// Функция для захвата фото
+function capturePhoto(videoElement, stream) {
+    const canvas = document.createElement('canvas');
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+    canvas.getContext('2d').drawImage(videoElement, 0, 0);
+
+    canvas.toBlob(blob => {
+        const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        document.getElementById('fileInput').files = dt.files;
+        enableGenerateButton();
+
+        // Очистка видео элемента и остановка потока
+        videoElement.parentNode.remove();
+        stream.getTracks().forEach(track => track.stop());
+    }, 'image/jpeg');
+}
+
+// Включение кнопки генерации
+function enableGenerateButton() {
+    const generateButton = document.getElementById('generateDesign');
+    generateButton.disabled = false;
+    generateButton.classList.remove('opacity-50', 'cursor-not-allowed');
+}
+
 // Основная функция для обработки генерации дизайна
 async function handleGenerateDesign() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput.files.length === 0) {
-        alert('Пожалуйста, сначала выберите фото');
+        alert('Пожалуйста, сначала выберите фото или сделайте снимок');
         return;
     }
 
