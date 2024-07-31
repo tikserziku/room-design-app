@@ -43,7 +43,7 @@ function displayResults(variants) {
   resultsDiv.innerHTML = '';
   
   const instructions = document.createElement('p');
-  instructions.textContent = 'Чтобы сохранить изображение, нажмите и удерживайте его, затем выберите "Сохранить изображение".';
+  instructions.textContent = 'Чтобы сохранить изображение, нажмите на кнопку "Скачать" под изображением.';
   resultsDiv.appendChild(instructions);
 
   variants.forEach((url, index) => {
@@ -54,17 +54,44 @@ function displayResults(variants) {
     img.src = url;
     img.alt = `Design variant ${index + 1}`;
 
-    const downloadBtn = document.createElement('a');
-    downloadBtn.href = url;
-    downloadBtn.download = `design-variant-${index + 1}.png`;
+    const downloadBtn = document.createElement('button');
     downloadBtn.textContent = 'Скачать';
     downloadBtn.className = 'download-btn';
+    downloadBtn.onclick = () => downloadImage(url, `design-variant-${index + 1}.png`);
 
     container.appendChild(img);
     container.appendChild(downloadBtn);
     resultsDiv.appendChild(container);
   });
+
+  // Сохраняем результаты в localStorage
+  localStorage.setItem('designVariants', JSON.stringify(variants));
 }
+
+function downloadImage(url, filename) {
+  fetch(url)
+    .then(response => response.blob())
+    .then(blob => {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    })
+    .catch(error => console.error('Error downloading image:', error));
+}
+
+// Добавьте эту функцию для восстановления результатов при загрузке страницы
+function restoreResults() {
+  const variants = JSON.parse(localStorage.getItem('designVariants'));
+  if (variants) {
+    displayResults(variants);
+  }
+}
+
+// Вызовите эту функцию при загрузке страницы
+window.onload = restoreResults;
 
 function displayError(message) {
   document.getElementById('error').textContent = message;
