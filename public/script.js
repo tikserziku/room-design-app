@@ -11,6 +11,7 @@ document.getElementById('takePhoto').addEventListener('click', initCamera);
 document.getElementById('fileInput').addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         enableGenerateButton();
+        displayThumbnail(e.target.files[0]);
     }
 });
 
@@ -23,25 +24,27 @@ function initCamera() {
         return;
     }
 
+    const cameraInterface = document.createElement('div');
+    cameraInterface.id = 'cameraInterface';
+    cameraInterface.innerHTML = `
+        <video id="cameraPreview" autoplay playsinline></video>
+        <button id="captureButton">Сделать снимок</button>
+        <button id="closeCameraButton">Закрыть камеру</button>
+    `;
+    document.body.appendChild(cameraInterface);
+
+    const video = document.getElementById('cameraPreview');
+
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
         .then(stream => {
-            const videoElement = document.createElement('video');
-            videoElement.srcObject = stream;
-            videoElement.play();
-
-            const captureButton = document.createElement('button');
-            captureButton.textContent = 'Сделать снимок';
-            captureButton.addEventListener('click', () => capturePhoto(videoElement, stream));
-
-            const container = document.createElement('div');
-            container.appendChild(videoElement);
-            container.appendChild(captureButton);
-
-            document.body.appendChild(container);
+            video.srcObject = stream;
+            document.getElementById('captureButton').addEventListener('click', () => capturePhoto(video, stream));
+            document.getElementById('closeCameraButton').addEventListener('click', () => closeCameraInterface(stream));
         })
         .catch(error => {
             console.error('Ошибка доступа к камере:', error);
             alert('Не удалось получить доступ к камере');
+            closeCameraInterface();
         });
 }
 
@@ -58,11 +61,38 @@ function capturePhoto(videoElement, stream) {
         dt.items.add(file);
         document.getElementById('fileInput').files = dt.files;
         enableGenerateButton();
+        displayThumbnail(file);
 
-        // Очистка видео элемента и остановка потока
-        videoElement.parentNode.remove();
-        stream.getTracks().forEach(track => track.stop());
+        // Закрываем интерфейс камеры
+        closeCameraInterface(stream);
     }, 'image/jpeg');
+}
+
+// Функция для закрытия интерфейса камеры
+function closeCameraInterface(stream) {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+    const cameraInterface = document.getElementById('cameraInterface');
+    if (cameraInterface) {
+        cameraInterface.remove();
+    }
+}
+
+// Функция для отображения миниатюры фото
+function displayThumbnail(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const thumbnail = document.getElementById('photoThumbnail') || document.createElement('img');
+        thumbnail.id = 'photoThumbnail';
+        thumbnail.src = e.target.result;
+        thumbnail.alt = 'Thumbnail';
+        thumbnail.className = 'w-12 h-12 object-cover rounded-full mt-2';
+        
+        const takePhotoButton = document.getElementById('takePhoto');
+        takePhotoButton.parentNode.insertBefore(thumbnail, takePhotoButton.nextSibling);
+    }
+    reader.readAsDataURL(file);
 }
 
 // Включение кнопки генерации
@@ -119,6 +149,10 @@ async function handleGenerateDesign() {
         displayError('Произошла ошибка при загрузке файла');
     }
 }
+
+// Остальные функции (handleTaskUpdate, handleDesignGenerated, showProgressBar, и т.д.) остаются без изменений
+
+// ... (остальной код остается без изменений)
 
 // Обработчик обновлений задачи
 function handleTaskUpdate(taskId) {
