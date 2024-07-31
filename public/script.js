@@ -26,6 +26,9 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
     formData.append('photo', fileInput.files[0]);
 
     try {
+        showProgressBar();
+        setProgress(10); // Начальный прогресс
+
         const response = await fetch('/upload', {
             method: 'POST',
             body: formData
@@ -35,25 +38,45 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
             throw new Error('Ошибка загрузки');
         }
 
+        setProgress(30); // Прогресс после загрузки
+
         const { taskId } = await response.json();
         displayStatus('Обработка изображения...');
 
         socket.on('taskUpdate', (update) => {
             if (update.taskId === taskId) {
                 if (update.status === 'analyzing') {
+                    const progress = 30 + (update.progress * 0.5); // От 30% до 80%
+                    setProgress(progress);
                     displayStatus(`Анализ изображения... ${update.progress}%`);
                 } else if (update.status === 'completed') {
+                    setProgress(100);
+                    hideProgressBar();
                     displayResults(update.variants);
                 } else if (update.status === 'error') {
+                    hideProgressBar();
                     displayError(update.error);
                 }
             }
         });
     } catch (error) {
         console.error('Ошибка:', error);
+        hideProgressBar();
         displayError('Произошла ошибка при загрузке файла');
     }
 });
+
+function showProgressBar() {
+    document.querySelector('.progress-container').style.display = 'block';
+}
+
+function hideProgressBar() {
+    document.querySelector('.progress-container').style.display = 'none';
+}
+
+function setProgress(percent) {
+    document.querySelector('.progress-bar').style.width = `${percent}%`;
+}
 
 function displayStatus(message) {
     document.getElementById('status').textContent = message;
