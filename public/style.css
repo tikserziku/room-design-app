@@ -53,3 +53,17 @@ form {
 .download-btn:hover {
     background-color: #45a049;
 }
+.progress-container {
+    width: 100%;
+    background-color: #e2e8f0;
+    border-radius: 9999px;
+    height: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    width: 0;
+    height: 100%;
+    background-color: #3b82f6;
+    transition: width 0.5s ease;
+}
