@@ -50,7 +50,7 @@ io.on('connection', (socket) => {
 app.post('/upload', upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
-      throw new Error('No file uploaded');
+      throw new Error('Файл не был загружен');
     }
     const taskId = uuidv4();
     tasks.set(taskId, { status: 'processing' });
@@ -58,34 +58,31 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
     processImageAsync(taskId, req.file.path);
   } catch (error) {
     console.error('Error processing upload:', error);
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 
-// ... (предыдущий код остается без изменений)
-
 async function processImageAsync(taskId, imagePath) {
   try {
-    tasks.set(taskId, { status: 'analyzing', progress: 0 });
-    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 0 });
-
     const analysisResult = await analyzeImage(imagePath);
-    
-    tasks.set(taskId, { status: 'analyzing', progress: 100 });
-    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 100 });
-
+    tasks.set(taskId, { status: 'analyzing', progress: 33 });
+    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 33 });
     await generateDesigns(taskId, analysisResult);
-    
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
   } catch (error) {
     console.error('Error processing image:', error);
     tasks.set(taskId, { status: 'error', error: error.message });
     io.emit('taskUpdate', { taskId, status: 'error', error: error.message });
+  } finally {
+    // Удаляем временный файл
+    try {
+      await fs.unlink(imagePath);
+    } catch (unlinkError) {
+      console.error('Error deleting temporary file:', unlinkError);
+    }
   }
 }
-
-// ... (остальной код остается без изменений)
 
 async function analyzeImage(imagePath) {
   try {
@@ -93,7 +90,7 @@ async function analyzeImage(imagePath) {
     const imageType = await fileType.fromBuffer(imageBuffer);
     
     if (!imageType || !['image/jpeg', 'image/png'].includes(imageType.mime)) {
-      throw new Error('Unsupported image format. Please upload a JPEG or PNG image.');
+      throw new Error('Неподдерживаемый формат изображения. Пожалуйста, загрузите изображение в формате JPEG или PNG.');
     }
     const base64Image = imageBuffer.toString('base64');
     console.log('Sending request to Anthropic API...');
@@ -125,7 +122,7 @@ async function analyzeImage(imagePath) {
     return message.content[0].text;
   } catch (error) {
     console.error('Error calling Anthropic API:', error);
-    throw error;
+    throw new Error('Ошибка при анализе изображения: ' + error.message);
   }
 }
 
@@ -152,5 +149,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? `Set (${process.env.ANTHROPIC_API_KEY.substr(0, 5)}...)` : 'Not set');
-  console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? `Set (${process.env.OPENAI_API_KEY.substr(0, 5)}...)` : 'Not set');
-});
+  console
