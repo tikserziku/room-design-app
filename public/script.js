@@ -99,16 +99,9 @@ function closeCameraInterface(stream) {
 function displayThumbnail(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
-        const thumbnail = document.getElementById('photoThumbnail') || document.createElement('img');
-        thumbnail.id = 'photoThumbnail';
+        const thumbnail = document.getElementById('photoThumbnail');
         thumbnail.src = e.target.result;
-        thumbnail.alt = 'Thumbnail';
-        thumbnail.className = 'photo-thumbnail';
-        
-        const takePhotoButton = document.getElementById('takePhoto');
-        if (!document.getElementById('photoThumbnail')) {
-            takePhotoButton.insertAdjacentElement('afterend', thumbnail);
-        }
+        thumbnail.classList.remove('hidden');
     }
     reader.readAsDataURL(file);
 }
