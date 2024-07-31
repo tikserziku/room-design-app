@@ -43,6 +43,9 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
         const { taskId } = await response.json();
         displayStatus('Обработка изображения...');
 
+        // Очищаем результаты перед новой генерацией
+        clearResults();
+
         socket.on('taskUpdate', (update) => {
             if (update.taskId === taskId) {
                 if (update.status === 'analyzing') {
@@ -52,11 +55,19 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
                 } else if (update.status === 'completed') {
                     setProgress(100);
                     hideProgressBar();
-                    displayResults(update.variants);
+                    displayStatus('Генерация завершена');
                 } else if (update.status === 'error') {
                     hideProgressBar();
                     displayError(update.error);
                 }
+            }
+        });
+
+        socket.on('designGenerated', (data) => {
+            if (data.taskId === taskId) {
+                const progress = 80 + (data.index * 6.67); // От 80% до 100%
+                setProgress(progress);
+                displayDesign(data.designUrl, data.index);
             }
         });
     } catch (error) {
@@ -82,17 +93,17 @@ function displayStatus(message) {
     document.getElementById('status').textContent = message;
 }
 
-function displayResults(variants) {
-    const resultsDiv = document.getElementById('results');
-    resultsDiv.innerHTML = '';
+function clearResults() {
+    document.getElementById('results').innerHTML = '';
+}
 
-    variants.forEach((url, index) => {
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = `Вариант дизайна ${index + 1}`;
-        img.className = 'w-full rounded-lg shadow-md';
-        resultsDiv.appendChild(img);
-    });
+function displayDesign(url, index) {
+    const resultsDiv = document.getElementById('results');
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = `Вариант дизайна ${index + 1}`;
+    img.className = 'w-full rounded-lg shadow-md mb-4';
+    resultsDiv.appendChild(img);
 }
 
 function displayError(message) {
