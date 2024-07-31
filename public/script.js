@@ -43,13 +43,36 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
         const { taskId } = await response.json();
         displayStatus('Обработка изображения...');
 
+        // ... (предыдущий код остается без изменений)
+
+document.getElementById('generateDesign').addEventListener('click', async () => {
+    // ... (предыдущий код остается без изменений)
+
+    try {
+        showProgressBar();
+        setProgress(0); // Начальный прогресс
+
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки');
+        }
+
+        setProgress(10); // Прогресс после загрузки
+
+        const { taskId } = await response.json();
+        displayStatus('Анализ изображения...');
+
         // Очищаем результаты перед новой генерацией
         clearResults();
 
         socket.on('taskUpdate', (update) => {
             if (update.taskId === taskId) {
                 if (update.status === 'analyzing') {
-                    const progress = 30 + (update.progress * 0.5); // От 30% до 80%
+                    const progress = 10 + (update.progress * 0.2); // От 10% до 30%
                     setProgress(progress);
                     displayStatus(`Анализ изображения... ${update.progress}%`);
                 } else if (update.status === 'completed') {
@@ -65,7 +88,7 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
 
         socket.on('designGenerated', (data) => {
             if (data.taskId === taskId) {
-                const progress = 80 + (data.index * 6.67); // От 80% до 100%
+                const progress = 30 + ((data.index + 1) * 23.33); // От 30% до 100%
                 setProgress(progress);
                 displayDesign(data.designUrl, data.index);
             }
@@ -77,6 +100,7 @@ document.getElementById('generateDesign').addEventListener('click', async () => 
     }
 });
 
+// ... (остальной код остается без изменений)
 function showProgressBar() {
     document.querySelector('.progress-container').style.display = 'block';
 }
