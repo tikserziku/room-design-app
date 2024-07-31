@@ -9,13 +9,25 @@ document.getElementById('uploadPhoto').addEventListener('click', () => {
 document.getElementById('takePhoto').addEventListener('click', initCamera);
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        enableGenerateButton();
-        displayThumbnail(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+        if (isValidImageType(file)) {
+            enableGenerateButton();
+            displayThumbnail(file);
+        } else {
+            alert('Пожалуйста, выберите изображение в формате JPEG или PNG.');
+            e.target.value = ''; // Очистить выбор файла
+        }
     }
 });
 
 document.getElementById('generateDesign').addEventListener('click', handleGenerateDesign);
+
+// Функция для проверки типа файла
+function isValidImageType(file) {
+    const acceptedImageTypes = ['image/jpeg', 'image/png'];
+    return file && acceptedImageTypes.includes(file.type);
+}
 
 // Функция для инициализации камеры
 function initCamera() {
@@ -57,11 +69,15 @@ function capturePhoto(videoElement, stream) {
 
     canvas.toBlob(blob => {
         const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        document.getElementById('fileInput').files = dt.files;
-        enableGenerateButton();
-        displayThumbnail(file);
+        if (isValidImageType(file)) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            document.getElementById('fileInput').files = dt.files;
+            enableGenerateButton();
+            displayThumbnail(file);
+        } else {
+            alert('Произошла ошибка при создании изображения. Пожалуйста, попробуйте еще раз.');
+        }
 
         // Закрываем интерфейс камеры
         closeCameraInterface(stream);
@@ -112,8 +128,14 @@ async function handleGenerateDesign() {
         return;
     }
 
+    const file = fileInput.files[0];
+    if (!isValidImageType(file)) {
+        alert('Пожалуйста, выберите изображение в формате JPEG или PNG.');
+        return;
+    }
+
     const formData = new FormData();
-    formData.append('photo', fileInput.files[0]);
+    formData.append('photo', file);
 
     try {
         showProgressBar();
@@ -126,7 +148,8 @@ async function handleGenerateDesign() {
         });
 
         if (!response.ok) {
-            throw new Error('Ошибка загрузки');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка загрузки');
         }
 
         setProgress(10);
@@ -148,13 +171,9 @@ async function handleGenerateDesign() {
     } catch (error) {
         console.error('Ошибка:', error);
         hideProgressBar();
-        displayError('Произошла ошибка при загрузке файла');
+        displayError(error.message);
     }
 }
-
-// Остальные функции (handleTaskUpdate, handleDesignGenerated, showProgressBar, и т.д.) остаются без изменений
-
-// ... (остальной код остается без изменений)
 
 // Обработчик обновлений задачи
 function handleTaskUpdate(taskId) {
