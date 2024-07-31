@@ -41,21 +41,11 @@ function displayStatus(message) {
 function displayResults(variants) {
   const resultsDiv = document.getElementById('results');
   resultsDiv.innerHTML = '';
-  variants.forEach((url, index) => {
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = `Design variant ${index + 1}`;
-    resultsDiv.appendChild(img);
-  });
-}
+  
+  const instructions = document.createElement('p');
+  instructions.textContent = 'Чтобы сохранить изображение, нажмите и удерживайте его, затем выберите "Сохранить изображение".';
+  resultsDiv.appendChild(instructions);
 
-function displayError(message) {
-  document.getElementById('error').textContent = message;
-}
-
-function displayResults(variants) {
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = '';
   variants.forEach((url, index) => {
     const container = document.createElement('div');
     container.className = 'image-container';
@@ -74,4 +64,8 @@ function displayResults(variants) {
     container.appendChild(downloadBtn);
     resultsDiv.appendChild(container);
   });
+}
+
+function displayError(message) {
+  document.getElementById('error').textContent = message;
 }
