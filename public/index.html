@@ -9,22 +9,30 @@
 </head>
 <body class="bg-gray-100">
     <div id="app" class="min-h-screen flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-white p-6 rounded-lg shadow-md">
+        <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
             <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Room Design Generator</h1>
             
-            <div class="flex flex-col sm:flex-row justify-around mb-4 space-y-2 sm:space-y-0 sm:space-x-2">
-                <button id="uploadPhoto" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
-                    Загрузить фото
-                </button>
-                <button id="takePhoto" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-                    </svg>
-                    Сфотографировать
-                </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-4">
+                    <button id="uploadPhoto" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Загрузить фото
+                    </button>
+                    <button id="takePhoto" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                        </svg>
+                        Сфотографировать
+                    </button>
+                    <button id="generateDesign" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded opacity-50 cursor-not-allowed" disabled>
+                        Сгенерировать дизайн
+                    </button>
+                </div>
+                <div class="photo-preview md:row-span-2">
+                    <img id="photoThumbnail" class="w-full h-auto object-cover rounded-lg shadow-md hidden" alt="Preview">
+                </div>
             </div>
             
             <input type="file" id="fileInput" class="hidden" accept="image/*">
@@ -32,10 +40,6 @@
             <div class="progress-container mt-4 mb-4 bg-gray-200 rounded-full h-2.5 dark:bg-gray-700" style="display: none;">
                 <div class="progress-bar h-2.5 rounded-full bg-blue-600" style="width: 0%"></div>
             </div>
-            
-            <button id="generateDesign" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded opacity-50 cursor-not-allowed" disabled>
-                Сгенерировать дизайн
-            </button>
             
             <div id="status" class="mt-4 text-center text-gray-600"></div>
             
