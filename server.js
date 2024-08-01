@@ -67,16 +67,19 @@ async function processImageAsync(taskId, imagePath) {
     
     console.log('Генерация поздравительного логотипа...');
     const congratsLogo = await generateCongratsLogo();
+    console.log('Поздравительный логотип сгенерирован:', congratsLogo);
     tasks.set(taskId, { status: 'generating logo', progress: 50 });
     io.emit('taskUpdate', { taskId, status: 'generating logo', progress: 50 });
     
     console.log('Создание поздравительной открытки...');
     const greetingCard = await createGreetingCard(imagePath, congratsLogo);
+    console.log('Поздравительная открытка создана');
     tasks.set(taskId, { status: 'creating card', progress: 75 });
     io.emit('taskUpdate', { taskId, status: 'creating card', progress: 75 });
 
     console.log('Сохранение открытки...');
     const cardUrl = await saveAndGetUrl(greetingCard, `greeting-card-${taskId}.png`);
+    console.log('Открытка сохранена:', cardUrl);
     
     console.log('Обработка завершена');
     tasks.set(taskId, { status: 'completed' });
@@ -117,11 +120,16 @@ async function createGreetingCard(imagePath, logoUrl) {
     const baseImage = sharp(imagePath);
     const logoBuffer = await downloadImage(logoUrl);
 
+    const WIDTH = 1080;
+    const HEIGHT = 1920;
+    const LOGO_HEIGHT = Math.floor(HEIGHT * 0.3); // 30% от высоты
+    const LOGO_TOP = HEIGHT - LOGO_HEIGHT;
+
     // Изменяем размер и обрезаем базовое изображение до формата 9:16
     const resizedBase = await baseImage
       .resize({
-        width: 1080,
-        height: 1920,
+        width: WIDTH,
+        height: HEIGHT,
         fit: sharp.fit.cover,
         position: sharp.strategy.entropy
       })
@@ -129,25 +137,25 @@ async function createGreetingCard(imagePath, logoUrl) {
     
     console.log('Базовое изображение изменено');
 
-    // Создаем праздничную рамку с теми же размерами, что и базовое изображение
-    const frame = await createFestiveFrame(1080, 1920);
+    // Создаем праздничную рамку
+    const frame = await createFestiveFrame(WIDTH, HEIGHT);
     console.log('Праздничная рамка создана');
 
     // Изменяем размер логотипа
     const resizedLogo = await sharp(logoBuffer)
       .resize({
-        width: 1080,
-        height: 640,
+        width: WIDTH,
+        height: LOGO_HEIGHT,
         fit: sharp.fit.inside
       })
       .toBuffer();
     console.log('Логотип изменен');
 
-    // Создаем белый фон для логотипа
+    // Создаем полупрозрачный фон для логотипа
     const logoBackground = await sharp({
       create: {
-        width: 1080,
-        height: 640,
+        width: WIDTH,
+        height: LOGO_HEIGHT,
         channels: 4,
         background: { r: 255, g: 255, b: 255, alpha: 0.8 }
       }
@@ -163,12 +171,12 @@ async function createGreetingCard(imagePath, logoUrl) {
         { input: frame, blend: 'over' },
         { 
           input: logoBackground,
-          top: 1280,
+          top: LOGO_TOP,
           left: 0
         },
         {
           input: resizedLogo,
-          top: 1280,
+          top: LOGO_TOP,
           left: 0,
           gravity: 'center'
         }
@@ -198,7 +206,7 @@ async function createFestiveFrame(width, height) {
                 stroke="gold" stroke-width="${frameWidth}" />
           <circle cx="${width/2}" cy="${height/2}" r="${width/4}" fill="none" 
                   stroke="gold" stroke-width="${frameWidth/2}" stroke-dasharray="10,10" />
-          <text x="${width/2}" y="${height-50}" font-family="Arial" font-size="40" 
+          <text x="${width/2}" y="${height-height*0.3-10}" font-family="Arial" font-size="40" 
                 fill="gold" text-anchor="middle">С Днем Рождения, Висагинас!</text>
         </svg>`),
         top: 0,
