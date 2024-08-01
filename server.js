@@ -9,6 +9,7 @@ const fileType = require('file-type');
 const http = require('http');
 const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
+const sharp = require('sharp');
 
 dotenv.config();
 
@@ -18,13 +19,8 @@ const io = socketIo(server);
 
 const upload = multer({ dest: 'uploads/' });
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('Anthropic API key is not set in environment variables');
-  process.exit(1);
-}
-
-if (!process.env.OPENAI_API_KEY) {
-  console.error('OpenAI API key is not set in environment variables');
+if (!process.env.ANTHROPIC_API_KEY || !process.env.OPENAI_API_KEY) {
+  console.error('API ключи не установлены в переменных окружения');
   process.exit(1);
 }
 
@@ -41,9 +37,9 @@ app.use(express.static('public'));
 const tasks = new Map();
 
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  console.log('Пользователь подключился');
   socket.on('disconnect', () => {
-    console.log('User disconnected');
+    console.log('Пользователь отключился');
   });
 });
 
@@ -57,97 +53,106 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
     res.json({ taskId });
     processImageAsync(taskId, req.file.path);
   } catch (error) {
-    console.error('Error processing upload:', error);
+    console.error('Ошибка обработки загрузки:', error);
     res.status(400).json({ error: error.message });
   }
 });
 
 async function processImageAsync(taskId, imagePath) {
   try {
-    const analysisResult = await analyzeImage(imagePath);
-    tasks.set(taskId, { status: 'analyzing', progress: 33 });
-    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 33 });
-    await generateDesigns(taskId, analysisResult);
+    tasks.set(taskId, { status: 'analyzing', progress: 25 });
+    io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 25 });
+    
+    const congratsLogo = await generateCongratsLogo();
+    tasks.set(taskId, { status: 'generating logo', progress: 50 });
+    io.emit('taskUpdate', { taskId, status: 'generating logo', progress: 50 });
+    
+    const greetingCard = await createGreetingCard(imagePath, congratsLogo);
+    tasks.set(taskId, { status: 'creating card', progress: 75 });
+    io.emit('taskUpdate', { taskId, status: 'creating card', progress: 75 });
+
+    const cardUrl = await saveAndGetUrl(greetingCard, `greeting-card-${taskId}.png`);
+    
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
+    io.emit('cardGenerated', { taskId, cardUrl });
   } catch (error) {
-    console.error('Error processing image:', error);
+    console.error('Ошибка обработки изображения:', error);
     tasks.set(taskId, { status: 'error', error: error.message });
     io.emit('taskUpdate', { taskId, status: 'error', error: error.message });
   } finally {
-    // Удаляем временный файл
     try {
       await fs.unlink(imagePath);
     } catch (unlinkError) {
-      console.error('Error deleting temporary file:', unlinkError);
+      console.error('Ошибка удаления временного файла:', unlinkError);
     }
   }
 }
 
-async function analyzeImage(imagePath) {
+async function generateCongratsLogo() {
   try {
-    const imageBuffer = await fs.readFile(imagePath);
-    const imageType = await fileType.fromBuffer(imageBuffer);
-    
-    if (!imageType || !['image/jpeg', 'image/png'].includes(imageType.mime)) {
-      throw new Error('Неподдерживаемый формат изображения. Пожалуйста, загрузите изображение в формате JPEG или PNG.');
-    }
-    const base64Image = imageBuffer.toString('base64');
-    console.log('Sending request to Anthropic API...');
-    console.log('Image type:', imageType.mime);
-    const message = await anthropic.beta.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: imageType.mime,
-                data: base64Image
-              }
-            },
-            {
-              type: "text",
-              text: "Analyze this room image and provide a detailed description focusing on the style, colors, furniture, and overall ambiance. Then, suggest three different design concepts that could enhance or transform this room."
-            }
-          ]
-        }
-      ]
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: "Создайте праздничный логотип с текстом 'Visaginas birthday' на английском языке. Логотип должен быть ярким, праздничным и отражать атмосферу городского праздника.",
+      n: 1,
+      size: "1024x1024",
     });
-    console.log('Received response from Anthropic API');
-    return message.content[0].text;
+    return response.data[0].url;
   } catch (error) {
-    console.error('Error calling Anthropic API:', error);
-    throw new Error('Ошибка при анализе изображения: ' + error.message);
-  }
-}
-
-async function generateDesigns(taskId, description) {
-  try {
-    for (let i = 0; i < 3; i++) {
-      console.log(`Generating design ${i + 1}...`);
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: `Based on this description: ${description}. Generate a new, unique room design concept. The image should be photorealistic and highly detailed.`,
-        n: 1,
-        size: "1024x1024",
-      });
-      const designUrl = response.data[0].url;
-      io.emit('designGenerated', { taskId, designUrl, index: i });
-    }
-  } catch (error) {
-    console.error('Error generating designs:', error);
+    console.error('Ошибка генерации поздравительного логотипа:', error);
     throw error;
   }
 }
 
+async function createGreetingCard(imagePath, logoUrl) {
+  try {
+    const baseImage = sharp(imagePath);
+    const logoImage = await downloadImage(logoUrl);
+
+    // Изменяем размер базового изображения и добавляем рамку
+    const resizedBase = await baseImage
+      .resize(800, 600, { fit: 'cover' })
+      .extend({
+        top: 50,
+        bottom: 50,
+        left: 50,
+        right: 50,
+        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      })
+      .toBuffer();
+
+    // Накладываем логотип
+    return sharp(resizedBase)
+      .composite([
+        {
+          input: logoImage,
+          top: 10,
+          left: 10,
+          gravity: 'northeast'
+        }
+      ])
+      .toBuffer();
+  } catch (error) {
+    console.error('Ошибка создания поздравительной открытки:', error);
+    throw error;
+  }
+}
+
+async function downloadImage(url) {
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+async function saveAndGetUrl(imageBuffer, filename) {
+  const publicPath = path.join(__dirname, 'public', 'generated');
+  await fs.mkdir(publicPath, { recursive: true });
+  const filePath = path.join(publicPath, filename);
+  await fs.writeFile(filePath, imageBuffer);
+  return `/generated/${filename}`;
+}
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Anthropic API Key:', process.env.ANTHROPIC_API_KEY ? `Set (${process.env.ANTHROPIC_API_KEY.substr(0, 5)}...)` : 'Not set');
-  console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? `Set (${process.env.OPENAI_API_KEY.substr(0, 5)}...)` : 'Not set');
+  console.log(`Сервер запущен на порту ${PORT}`);
 });
