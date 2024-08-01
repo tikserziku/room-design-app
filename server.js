@@ -105,21 +105,29 @@ async function processImageAsync(taskId, imagePath, style) {
 
 async function applyPicassoStyle(imagePath) {
   try {
-    const imageBuffer = await fs.readFile(imagePath);
+    // Уменьшаем размер изображения перед обработкой
+    const resizedImageBuffer = await sharp(imagePath)
+      .resize({ width: 512, height: 512, fit: 'inside' })
+      .toBuffer();
 
     const response = await openai.images.edit({
-      image: imageBuffer,
+      image: resizedImageBuffer,
       prompt: "Transform this image into the style of Pablo Picasso, emphasizing cubist elements and bold, abstract shapes.",
       n: 1,
-      size: "1024x1024"
+      size: "512x512"
     });
 
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
     const outputPath = imagePath.replace('.jpg', '-picasso.png');
-    await fs.writeFile(outputPath, picassoImageBuffer);
+    await sharp(picassoImageBuffer)
+      .toFile(outputPath);
     
+    // Освобождаем память
+    resizedImageBuffer = null;
+    picassoImageBuffer = null;
+
     return outputPath;
   } catch (error) {
     console.error('Ошибка при применении стиля Пикассо:', error);
