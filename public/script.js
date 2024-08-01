@@ -1,15 +1,9 @@
 const socket = io();
 let currentTaskId = null;
-let selectedStyle = 'normal';
-
-document.getElementById('styleNormal').addEventListener('click', () => setStyle('normal'));
-document.getElementById('stylePicasso').addEventListener('click', () => setStyle('picasso'));
 
 document.getElementById('uploadPhoto').addEventListener('click', () => {
     document.getElementById('fileInput').click();
 });
-
-document.getElementById('takePhoto').addEventListener('click', initCamera);
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -26,27 +20,9 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 
 document.getElementById('generateDesign').addEventListener('click', handleGenerateDesign);
 
-function setStyle(style) {
-    selectedStyle = style;
-    document.getElementById('styleNormal').classList.toggle('bg-blue-700', style === 'normal');
-    document.getElementById('stylePicasso').classList.toggle('bg-green-700', style === 'picasso');
-}
-
 function isValidImageType(file) {
     const acceptedImageTypes = ['image/jpeg', 'image/png'];
     return file && acceptedImageTypes.includes(file.type);
-}
-
-function initCamera() {
-    // ... (оставьте существующий код для инициализации камеры)
-}
-
-function capturePhoto(videoElement, stream) {
-    // ... (оставьте существующий код для захвата фото)
-}
-
-function closeCameraInterface(stream) {
-    // ... (оставьте существующий код для закрытия интерфейса камеры)
 }
 
 function displayThumbnail(file) {
@@ -68,7 +44,7 @@ function enableGenerateButton() {
 async function handleGenerateDesign() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput.files.length === 0) {
-        alert('Пожалуйста, сначала выберите фото или сделайте снимок');
+        alert('Пожалуйста, сначала выберите фото');
         return;
     }
 
@@ -80,7 +56,7 @@ async function handleGenerateDesign() {
 
     const formData = new FormData();
     formData.append('photo', file);
-    formData.append('style', selectedStyle);
+    formData.append('style', 'picasso');
 
     try {
         showProgressBar();
@@ -111,7 +87,7 @@ async function handleGenerateDesign() {
 socket.on('taskUpdate', (update) => {
     if (update.taskId === currentTaskId) {
         setProgress(update.progress);
-        displayStatus(update.status);
+        displayStatus(getStatusMessage(update.status));
         if (update.status === 'error') {
             displayError(update.error);
         }
@@ -123,6 +99,15 @@ socket.on('cardGenerated', (data) => {
         displayGreetingCard(data.cardUrl);
     }
 });
+
+function getStatusMessage(status) {
+    switch (status) {
+        case 'analyzing': return 'Анализ изображения...';
+        case 'applying style': return 'Применение стиля Пикассо...';
+        case 'completed': return 'Обработка завершена';
+        default: return 'Обработка...';
+    }
+}
 
 function displayGreetingCard(url) {
     const resultsDiv = document.getElementById('results');
