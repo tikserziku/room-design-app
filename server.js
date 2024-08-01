@@ -153,15 +153,13 @@ async function generateCongratsLogo() {
 async function createGreetingCard(imagePath, logoUrl) {
   try {
     console.log('Начало создания поздравительной открытки');
-    const baseImage = sharp(imagePath);
-    const logoBuffer = await downloadImage(logoUrl);
 
     const WIDTH = 1080;
     const HEIGHT = 1920;
-    const LOGO_SIZE = Math.floor(WIDTH * 0.25); // Размер логотипа - 25% от ширины изображения
+    const LOGO_SIZE = Math.floor(WIDTH * 0.25);
 
     // Изменяем размер и обрезаем базовое изображение до формата 9:16
-    const resizedBase = await baseImage
+    const resizedBase = await sharp(imagePath)
       .resize({
         width: WIDTH,
         height: HEIGHT,
@@ -173,6 +171,7 @@ async function createGreetingCard(imagePath, logoUrl) {
     console.log('Базовое изображение изменено');
 
     // Обработка логотипа: удаление зеленого фона и создание круглой маски
+    const logoBuffer = await downloadImage(logoUrl);
     const processedLogo = await sharp(logoBuffer)
       .resize(LOGO_SIZE, LOGO_SIZE)
       .removeAlpha()
@@ -191,7 +190,7 @@ async function createGreetingCard(imagePath, logoUrl) {
 
     // Собираем финальное изображение
     console.log('Начало сборки финального изображения');
-    return sharp(resizedBase)
+    const finalImage = await sharp(resizedBase)
       .composite([
         {
           input: processedLogo,
@@ -200,6 +199,13 @@ async function createGreetingCard(imagePath, logoUrl) {
         }
       ])
       .toBuffer();
+
+    // Освобождаем память
+    resizedBase = null;
+    logoBuffer = null;
+    processedLogo = null;
+
+    return finalImage;
   } catch (error) {
     console.error('Ошибка при создании поздравительной открытки:', error);
     throw error;
