@@ -109,25 +109,19 @@ async function createGreetingCard(imagePath, logoUrl) {
     const baseImage = sharp(imagePath);
     const logoImage = await downloadImage(logoUrl);
 
-    // Изменяем размер базового изображения и добавляем рамку
     const resizedBase = await baseImage
       .resize(800, 600, { fit: 'cover' })
       .extend({
-        top: 50,
-        bottom: 50,
-        left: 50,
-        right: 50,
+        top: 50, bottom: 50, left: 50, right: 50,
         background: { r: 255, g: 255, b: 255, alpha: 1 }
       })
       .toBuffer();
 
-    // Накладываем логотип
     return sharp(resizedBase)
       .composite([
         {
           input: logoImage,
-          top: 10,
-          left: 10,
+          top: 10, left: 10,
           gravity: 'northeast'
         }
       ])
