@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 const http = require('http');
@@ -9,8 +10,6 @@ const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const sharp = require('sharp');
 const fetch = require('node-fetch');
-const v8 = require('v8');
-v8.setFlagsFromString('--max_old_space_size=460');
 
 dotenv.config();
 
@@ -20,10 +19,14 @@ const io = socketIo(server);
 
 const upload = multer({ dest: 'uploads/' });
 
-if (!process.env.OPENAI_API_KEY) {
-  console.error('API ключ OpenAI не установлен в переменных окружения');
+if (!process.env.ANTHROPIC_API_KEY || !process.env.OPENAI_API_KEY) {
+  console.error('API ключи не установлены в переменных окружения');
   process.exit(1);
 }
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -67,27 +70,12 @@ async function processImageAsync(taskId, imagePath, style) {
     if (style === 'picasso') {
       console.log('Применение стиля Пикассо...');
       processedImagePath = await applyPicassoStyle(imagePath);
-      tasks.set(taskId, { status: 'applying style', progress: 50 });
-      io.emit('taskUpdate', { taskId, status: 'applying style', progress: 50 });
+      tasks.set(taskId, { status: 'applying style', progress: 75 });
+      io.emit('taskUpdate', { taskId, status: 'applying style', progress: 75 });
     }
     
-    console.log('Генерация поздравительного логотипа...');
-    const congratsLogo = await generateCongratsLogo();
-    console.log('Поздравительный логотип сгенерирован:', congratsLogo);
-    tasks.set(taskId, { status: 'generating logo', progress: 75 });
-    io.emit('taskUpdate', { taskId, status: 'generating logo', progress: 75 });
-    
-    console.log('Создание поздравительной открытки...');
-    const greetingCard = await createGreetingCard(processedImagePath, congratsLogo);
-    console.log('Поздравительная открытка создана');
-    tasks.set(taskId, { status: 'creating card', progress: 90 });
-    io.emit('taskUpdate', { taskId, status: 'creating card', progress: 90 });
-
-    console.log('Сохранение открытки...');
-    const cardUrl = await saveAndGetUrl(greetingCard, `greeting-card-${taskId}.png`);
-    console.log('Открытка сохранена:', cardUrl);
-    
     console.log('Обработка завершена');
+    const cardUrl = `/generated/${path.basename(processedImagePath)}`;
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
     io.emit('cardGenerated', { taskId, cardUrl });
@@ -107,109 +95,60 @@ async function processImageAsync(taskId, imagePath, style) {
 
 async function applyPicassoStyle(imagePath) {
   try {
-    // Уменьшаем размер изображения перед обработкой
-    const resizedImageBuffer = await sharp(imagePath)
-      .resize({ width: 512, height: 512, fit: 'inside' })
-      .toBuffer();
+    // Считываем изображение
+    const imageBuffer = await fs.readFile(imagePath);
+    const base64Image = imageBuffer.toString('base64');
 
-    const response = await openai.images.edit({
-      image: resizedImageBuffer,
-      prompt: "Transform this image into the style of Pablo Picasso, emphasizing cubist elements and bold, abstract shapes.",
+    // Анализируем изображение с помощью Anthropic API
+    const analysisMessage = await anthropic.messages.create({
+      model: "claude-3-opus-20240229",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/jpeg",
+                data: base64Image
+              }
+            },
+            {
+              type: "text",
+              text: "Analyze this image and describe its key elements and overall composition. Focus on aspects that would be important to recreate in a Picasso-style painting."
+            }
+          ]
+        }
+      ]
+    });
+
+    const imageAnalysis = analysisMessage.content[0].text;
+
+    // Создаем промпт для OpenAI на основе анализа
+    const openaiPrompt = `Create a new image in the style of Pablo Picasso based on the following description: ${imageAnalysis}. 
+    The image should incorporate cubist elements and bold, abstract shapes typical of Picasso's style. 
+    Additionally, include the text "Happy Birthday Visaginas" in English, integrated into the composition in a stylistic manner. 
+    The text should be clearly readable but artistically incorporated into the Picasso-style image.`;
+
+    // Генерируем новое изображение с помощью OpenAI
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: openaiPrompt,
       n: 1,
-      size: "512x512"
+      size: "1024x1024",
     });
 
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
     const outputPath = imagePath.replace('.jpg', '-picasso.png');
-    await sharp(picassoImageBuffer)
-      .toFile(outputPath);
+    await fs.writeFile(outputPath, picassoImageBuffer);
     
-    // Освобождаем память
-    resizedImageBuffer = null;
-    picassoImageBuffer = null;
-
     return outputPath;
   } catch (error) {
     console.error('Ошибка при применении стиля Пикассо:', error);
-    throw error;
-  }
-}
-
-async function generateCongratsLogo() {
-  try {
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: "Создайте праздничный логотип с текстом 'Visaginas birthday' на английском языке. Логотип должен быть ярким, праздничным и отражать атмосферу городского праздника. Логотип должен быть круглым и размещен на ярко-зеленом фоне (#00FF00). Сам логотип должен быть контрастным по отношению к фону.",
-      n: 1,
-      size: "1024x1024",
-    });
-    return response.data[0].url;
-  } catch (error) {
-    console.error('Ошибка генерации поздравительного логотипа:', error);
-    throw error;
-  }
-}
-
-async function createGreetingCard(imagePath, logoUrl) {
-  try {
-    console.log('Начало создания поздравительной открытки');
-
-    const WIDTH = 1080;
-    const HEIGHT = 1920;
-    const LOGO_SIZE = Math.floor(WIDTH * 0.25);
-
-    // Изменяем размер и обрезаем базовое изображение до формата 9:16
-    const resizedBase = await sharp(imagePath)
-      .resize({
-        width: WIDTH,
-        height: HEIGHT,
-        fit: sharp.fit.cover,
-        position: sharp.strategy.entropy
-      })
-      .toBuffer();
-    
-    console.log('Базовое изображение изменено');
-
-    // Обработка логотипа: удаление зеленого фона и создание круглой маски
-    const logoBuffer = await downloadImage(logoUrl);
-    const processedLogo = await sharp(logoBuffer)
-      .resize(LOGO_SIZE, LOGO_SIZE)
-      .removeAlpha()
-      .flatten({ background: { r: 0, g: 255, b: 0 } })
-      .toColourspace('b-w')
-      .threshold(128)
-      .toColourspace('srgb')
-      .composite([{
-        input: Buffer.from(`<svg><circle cx="${LOGO_SIZE/2}" cy="${LOGO_SIZE/2}" r="${LOGO_SIZE/2}" /></svg>`),
-        blend: 'dest-in'
-      }])
-      .png()
-      .toBuffer();
-
-    console.log('Логотип обработан: зеленый фон удален и применена круглая маска');
-
-    // Собираем финальное изображение
-    console.log('Начало сборки финального изображения');
-    const finalImage = await sharp(resizedBase)
-      .composite([
-        {
-          input: processedLogo,
-          top: HEIGHT - LOGO_SIZE - 20,
-          left: WIDTH - LOGO_SIZE - 20,
-        }
-      ])
-      .toBuffer();
-
-    // Освобождаем память
-    resizedBase = null;
-    logoBuffer = null;
-    processedLogo = null;
-
-    return finalImage;
-  } catch (error) {
-    console.error('Ошибка при создании поздравительной открытки:', error);
     throw error;
   }
 }
@@ -224,19 +163,6 @@ async function downloadImage(url) {
     return Buffer.from(arrayBuffer);
   } catch (error) {
     console.error('Ошибка при загрузке изображения:', error);
-    throw error;
-  }
-}
-
-async function saveAndGetUrl(imageBuffer, filename) {
-  try {
-    const publicPath = path.join(__dirname, 'public', 'generated');
-    await fs.mkdir(publicPath, { recursive: true });
-    const filePath = path.join(publicPath, filename);
-    await fs.writeFile(filePath, imageBuffer);
-    return `/generated/${filename}`;
-  } catch (error) {
-    console.error('Ошибка при сохранении изображения:', error);
     throw error;
   }
 }
