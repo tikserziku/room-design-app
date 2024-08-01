@@ -9,6 +9,8 @@ const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const sharp = require('sharp');
 const fetch = require('node-fetch');
+const v8 = require('v8');
+v8.setFlagsFromString('--max_old_space_size=460');
 
 dotenv.config();
 
