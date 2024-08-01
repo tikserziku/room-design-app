@@ -5,7 +5,6 @@ const fs = require('fs').promises;
 const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
-const fileType = require('file-type');
 const http = require('http');
 const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
@@ -116,10 +115,8 @@ async function createGreetingCard(imagePath, logoUrl) {
     const baseImage = sharp(imagePath);
     const logoBuffer = await downloadImage(logoUrl);
 
-    // Получаем метаданные базового изображения
     const baseMetadata = await baseImage.metadata();
 
-    // Изменяем размер и расширяем базовое изображение
     const resizedBase = await baseImage
       .resize(800, 600, { fit: 'cover' })
       .extend({
@@ -128,10 +125,8 @@ async function createGreetingCard(imagePath, logoUrl) {
       })
       .toBuffer();
 
-    // Получаем метаданные расширенного базового изображения
     const extendedMetadata = await sharp(resizedBase).metadata();
 
-    // Изменяем размер логотипа
     const resizedLogo = await sharp(logoBuffer)
       .resize(Math.floor(extendedMetadata.width / 4), Math.floor(extendedMetadata.height / 4), {
         fit: 'inside',
@@ -139,7 +134,6 @@ async function createGreetingCard(imagePath, logoUrl) {
       })
       .toBuffer();
 
-    // Накладываем логотип на базовое изображение
     return sharp(resizedBase)
       .composite([
         {
@@ -170,6 +164,18 @@ async function downloadImage(url) {
   }
 }
 
+async function saveAndGetUrl(imageBuffer, filename) {
+  try {
+    const publicPath = path.join(__dirname, 'public', 'generated');
+    await fs.mkdir(publicPath, { recursive: true });
+    const filePath = path.join(publicPath, filename);
+    await fs.writeFile(filePath, imageBuffer);
+    return `/generated/${filename}`;
+  } catch (error) {
+    console.error('Ошибка при сохранении изображения:', error);
+    throw error;
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
