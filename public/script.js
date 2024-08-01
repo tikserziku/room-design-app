@@ -1,6 +1,19 @@
 const socket = io();
 let currentTaskId = null;
 
+function createStatusLog() {
+    const statusLog = document.createElement('div');
+    statusLog.id = 'statusLog';
+    statusLog.className = 'mt-4 p-4 bg-gray-100 rounded-lg max-h-60 overflow-y-auto';
+    document.getElementById('app').appendChild(statusLog);
+    return statusLog;
+}
+
+let statusLog = document.getElementById('statusLog');
+if (!statusLog) {
+    statusLog = createStatusLog();
+}
+
 document.getElementById('uploadPhoto').addEventListener('click', () => {
     document.getElementById('fileInput').click();
 });
@@ -62,6 +75,8 @@ async function handleGenerateDesign() {
         showProgressBar();
         setProgress(0);
         displayStatus('Загрузка файла...');
+        
+        statusLog.innerHTML = '';
 
         const response = await fetch('/upload', {
             method: 'POST',
@@ -83,6 +98,16 @@ async function handleGenerateDesign() {
         displayError(error.message);
     }
 }
+
+socket.on('statusUpdate', (update) => {
+    if (update.taskId === currentTaskId || update.taskId === '') {
+        const statusMessage = document.createElement('p');
+        statusMessage.textContent = `${update.message}`;
+        statusMessage.className = 'text-sm text-gray-600';
+        statusLog.appendChild(statusMessage);
+        statusLog.scrollTop = statusLog.scrollHeight;
+    }
+});
 
 socket.on('taskUpdate', (update) => {
     if (update.taskId === currentTaskId) {
