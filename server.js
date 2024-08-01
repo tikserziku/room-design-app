@@ -96,11 +96,15 @@ async function processImageAsync(taskId, imagePath, style) {
 async function applyPicassoStyle(imagePath) {
   try {
     console.log('Начало применения стиля Пикассо');
-    // Считываем изображение
-    const imageBuffer = await fs.readFile(imagePath);
+    
+    // Считываем и обрабатываем изображение
+    const imageBuffer = await sharp(imagePath)
+      .jpeg() // Конвертируем изображение в JPEG
+      .toBuffer();
+    
     const base64Image = imageBuffer.toString('base64');
 
-    console.log('Изображение считано, начинаем анализ с Anthropic');
+    console.log('Изображение обработано, начинаем анализ с Anthropic');
     // Анализируем изображение с помощью Anthropic API
     const analysisMessage = await anthropic.beta.messages.create({
       model: "claude-3-opus-20240229",
@@ -148,7 +152,7 @@ async function applyPicassoStyle(imagePath) {
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
-    const outputPath = imagePath.replace('.jpg', '-picasso.png');
+    const outputPath = imagePath.replace(/\.[^/.]+$/, '') + '-picasso.png';
     await fs.writeFile(outputPath, picassoImageBuffer);
     
     console.log('Стиль Пикассо успешно применен');
