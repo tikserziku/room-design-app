@@ -46,9 +46,14 @@ io.on('connection', (socket) => {
   });
 });
 
+function sendStatusUpdate(taskId, message) {
+  console.log(`[${taskId}] ${message}`);
+  io.emit('statusUpdate', { taskId, message });
+}
+
 app.post('/upload', upload.single('photo'), async (req, res) => {
   try {
-    console.log('Начало обработки загрузки');
+    sendStatusUpdate('', 'Начало обработки загрузки');
     if (!req.file) {
       throw new Error('Файл не был загружен');
     }
@@ -56,7 +61,7 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
     const style = req.body.style || 'normal';
     tasks.set(taskId, { status: 'processing', style });
     res.json({ taskId });
-    console.log(`Задача ${taskId} создана, начинаем обработку`);
+    sendStatusUpdate(taskId, 'Задача создана, начинаем обработку');
     processImageAsync(taskId, req.file.path, style);
   } catch (error) {
     console.error('Ошибка обработки загрузки:', error);
@@ -66,20 +71,20 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
 
 async function processImageAsync(taskId, imagePath, style) {
   try {
-    console.log(`Начало обработки изображения для задачи ${taskId}, стиль: ${style}`);
+    sendStatusUpdate(taskId, `Начало обработки изображения, стиль: ${style}`);
     
     tasks.set(taskId, { status: 'analyzing', progress: 25 });
     io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 25 });
     
     let processedImageUrl = '';
     if (style === 'picasso') {
-      console.log('Применение стиля Пикассо...');
+      sendStatusUpdate(taskId, 'Применение стиля Пикассо...');
       processedImageUrl = await applyPicassoStyle(imagePath, taskId);
       tasks.set(taskId, { status: 'applying style', progress: 75 });
       io.emit('taskUpdate', { taskId, status: 'applying style', progress: 75 });
     }
     
-    console.log('Обработка завершена');
+    sendStatusUpdate(taskId, 'Обработка завершена');
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
     io.emit('cardGenerated', { taskId, cardUrl: processedImageUrl });
@@ -87,10 +92,11 @@ async function processImageAsync(taskId, imagePath, style) {
     console.error(`Ошибка обработки изображения для задачи ${taskId}:`, error);
     tasks.set(taskId, { status: 'error', error: error.message });
     io.emit('taskUpdate', { taskId, status: 'error', error: error.message });
+    sendStatusUpdate(taskId, `Ошибка: ${error.message}`);
   } finally {
     try {
       await fs.unlink(imagePath);
-      console.log(`Временный файл ${imagePath} удален`);
+      sendStatusUpdate(taskId, `Временный файл ${imagePath} удален`);
     } catch (unlinkError) {
       console.error('Ошибка удаления временного файла:', unlinkError);
     }
@@ -99,19 +105,17 @@ async function processImageAsync(taskId, imagePath, style) {
 
 async function applyPicassoStyle(imagePath, taskId) {
   try {
-    console.log(`[${taskId}] Начало применения стиля Пикассо`);
+    sendStatusUpdate(taskId, 'Начало применения стиля Пикассо');
     
-    // Считываем и обрабатываем изображение
-    console.log(`[${taskId}] Обработка изображения`);
+    sendStatusUpdate(taskId, 'Обработка изображения');
     const imageBuffer = await sharp(imagePath)
-      .jpeg() // Конвертируем изображение в JPEG
+      .jpeg()
       .toBuffer();
     
     const base64Image = imageBuffer.toString('base64');
-    console.log(`[${taskId}] Изображение преобразовано в base64`);
+    sendStatusUpdate(taskId, 'Изображение преобразовано в base64');
 
-    console.log(`[${taskId}] Начало анализа с Anthropic`);
-    // Анализируем изображение с помощью Anthropic API
+    sendStatusUpdate(taskId, 'Начало анализа с Anthropic');
     const analysisMessage = await Promise.race([
       anthropic.beta.messages.create({
         model: "claude-3-opus-20240229",
@@ -136,20 +140,18 @@ async function applyPicassoStyle(imagePath, taskId) {
           }
         ]
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000)) // 60 секунд таймаут
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
     ]);
 
-    console.log(`[${taskId}] Анализ Anthropic завершен, формируем промпт для OpenAI`);
+    sendStatusUpdate(taskId, 'Анализ Anthropic завершен, формируем промпт для OpenAI');
     const imageAnalysis = analysisMessage.content[0].text;
 
-    // Создаем промпт для OpenAI на основе анализа
     const openaiPrompt = `Create a new image in the style of Pablo Picasso based on the following description: ${imageAnalysis}. 
     The image should incorporate cubist elements and bold, abstract shapes typical of Picasso's style. 
     Additionally, include the text "Happy Birthday Visaginas" in English, integrated into the composition in a stylistic manner. 
     The text should be clearly readable but artistically incorporated into the Picasso-style image.`;
 
-    console.log(`[${taskId}] Начинаем генерацию изображения с OpenAI`);
-    // Генерируем новое изображение с помощью OpenAI
+    sendStatusUpdate(taskId, 'Начинаем генерацию изображения с OpenAI');
     const response = await Promise.race([
       openai.images.generate({
         model: "dall-e-3",
@@ -157,14 +159,13 @@ async function applyPicassoStyle(imagePath, taskId) {
         n: 1,
         size: "1024x1024",
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000)) // 60 секунд таймаут
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
     ]);
 
-    console.log(`[${taskId}] Изображение сгенерировано, сохраняем результат`);
+    sendStatusUpdate(taskId, 'Изображение сгенерировано, сохраняем результат');
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
-    // Убедимся, что папка 'generated' существует
     const generatedDir = path.join(__dirname, 'generated');
     await fs.mkdir(generatedDir, { recursive: true });
     
@@ -172,10 +173,10 @@ async function applyPicassoStyle(imagePath, taskId) {
     const outputPath = path.join(generatedDir, outputFileName);
     await fs.writeFile(outputPath, picassoImageBuffer);
     
-    console.log(`[${taskId}] Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
-    return `/generated/${outputFileName}`;  // Возвращаем URL для клиента
+    sendStatusUpdate(taskId, `Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
+    return `/generated/${outputFileName}`;
   } catch (error) {
-    console.error(`[${taskId}] Ошибка при применении стиля Пикассо:`, error);
+    sendStatusUpdate(taskId, `Ошибка при применении стиля Пикассо: ${error.message}`);
     throw error;
   }
 }
