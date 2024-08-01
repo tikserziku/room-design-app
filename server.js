@@ -98,7 +98,7 @@ async function generateCongratsLogo() {
   try {
     const response = await openai.images.generate({
       model: "dall-e-3",
-      prompt: "Создайте праздничный логотип с текстом 'Visaginas birthday' на английском языке. Логотип должен быть ярким, праздничным и отражать атмосферу городского праздника. Логотип должен быть круглым.",
+      prompt: "Создайте праздничный логотип с текстом 'Visaginas birthday' на английском языке. Логотип должен быть ярким, праздничным и отражать атмосферу городского праздника. Логотип должен быть круглым и размещен на ярко-зеленом фоне (#00FF00). Сам логотип должен быть контрастным по отношению к фону.",
       n: 1,
       size: "1024x1024",
     });
@@ -131,27 +131,29 @@ async function createGreetingCard(imagePath, logoUrl) {
     
     console.log('Базовое изображение изменено');
 
-    // Создаем круглую маску для логотипа
-    const roundedCorners = Buffer.from(`
-      <svg><circle cx="${LOGO_SIZE/2}" cy="${LOGO_SIZE/2}" r="${LOGO_SIZE/2}" /></svg>
-    `);
-
-    // Изменяем размер логотипа и применяем круглую маску
-    const resizedLogo = await sharp(logoBuffer)
+    // Обработка логотипа: удаление зеленого фона и создание круглой маски
+    const processedLogo = await sharp(logoBuffer)
       .resize(LOGO_SIZE, LOGO_SIZE)
+      .removeAlpha()
+      .flatten({ background: { r: 0, g: 255, b: 0 } })
+      .toColourspace('b-w')
+      .threshold(128)
+      .toColourspace('srgb')
       .composite([{
-        input: roundedCorners,
+        input: Buffer.from(`<svg><circle cx="${LOGO_SIZE/2}" cy="${LOGO_SIZE/2}" r="${LOGO_SIZE/2}" /></svg>`),
         blend: 'dest-in'
       }])
+      .png()
       .toBuffer();
-    console.log('Логотип изменен и сделан круглым');
+
+    console.log('Логотип обработан: зеленый фон удален и применена круглая маска');
 
     // Собираем финальное изображение
     console.log('Начало сборки финального изображения');
     return sharp(resizedBase)
       .composite([
         {
-          input: resizedLogo,
+          input: processedLogo,
           top: HEIGHT - LOGO_SIZE - 20,
           left: WIDTH - LOGO_SIZE - 20,
         }
