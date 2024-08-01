@@ -110,37 +110,61 @@ async function generateCongratsLogo() {
   }
 }
 
+// ... (предыдущий код остается без изменений)
+
 async function createGreetingCard(imagePath, logoUrl) {
   try {
     const baseImage = sharp(imagePath);
     const logoBuffer = await downloadImage(logoUrl);
 
-    const baseMetadata = await baseImage.metadata();
-
+    // Изменяем размер и обрезаем базовое изображение до формата 9:16
     const resizedBase = await baseImage
-      .resize(800, 600, { fit: 'cover' })
-      .extend({
-        top: 50, bottom: 50, left: 50, right: 50,
-        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      .resize({
+        width: 1080,
+        height: 1920,
+        fit: sharp.fit.cover,
+        position: sharp.strategy.entropy
       })
       .toBuffer();
 
-    const extendedMetadata = await sharp(resizedBase).metadata();
+    // Создаем праздничную рамку
+    const frame = await createFestiveFrame();
 
+    // Изменяем размер логотипа
     const resizedLogo = await sharp(logoBuffer)
-      .resize(Math.floor(extendedMetadata.width / 4), Math.floor(extendedMetadata.height / 4), {
-        fit: 'inside',
-        withoutEnlargement: true
+      .resize({
+        width: 1080,
+        height: 640,
+        fit: sharp.fit.inside
       })
       .toBuffer();
 
+    // Создаем белый фон для логотипа
+    const logoBackground = await sharp({
+      create: {
+        width: 1080,
+        height: 640,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 0.8 }
+      }
+    })
+    .png()
+    .toBuffer();
+
+    // Собираем финальное изображение
     return sharp(resizedBase)
       .composite([
+        { input: frame, blend: 'over' },
+        { 
+          input: logoBackground,
+          top: 1280,
+          left: 0
+        },
         {
           input: resizedLogo,
-          top: 10,
-          left: 10,
-          gravity: 'northeast'
+          top: 1280,
+          left: 0,
+          gravity: 'center'
         }
       ])
       .toBuffer();
@@ -150,19 +174,38 @@ async function createGreetingCard(imagePath, logoUrl) {
   }
 }
 
-async function downloadImage(url) {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+async function createFestiveFrame() {
+  const width = 1080;
+  const height = 1920;
+  const frameWidth = 20;
+
+  return sharp({
+    create: {
+      width: width,
+      height: height,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
     }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (error) {
-    console.error('Ошибка при загрузке изображения:', error);
-    throw error;
-  }
+  })
+    .composite([
+      {
+        input: Buffer.from(`<svg>
+          <rect x="0" y="0" width="${width}" height="${height}" fill="none" 
+                stroke="gold" stroke-width="${frameWidth}" />
+          <circle cx="${width/2}" cy="${height/2}" r="${width/4}" fill="none" 
+                  stroke="gold" stroke-width="${frameWidth/2}" stroke-dasharray="10,10" />
+          <text x="${width/2}" y="${height-50}" font-family="Arial" font-size="40" 
+                fill="gold" text-anchor="middle">С Днем Рождения, Висагинас!</text>
+        </svg>`),
+        top: 0,
+        left: 0
+      }
+    ])
+    .png()
+    .toBuffer();
 }
+
+// ... (остальной код остается без изменений)
 
 async function saveAndGetUrl(imageBuffer, filename) {
   try {
