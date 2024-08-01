@@ -60,29 +60,36 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
 
 async function processImageAsync(taskId, imagePath) {
   try {
+    console.log(`Начало обработки изображения для задачи ${taskId}`);
+    
     tasks.set(taskId, { status: 'analyzing', progress: 25 });
     io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 25 });
     
+    console.log('Генерация поздравительного логотипа...');
     const congratsLogo = await generateCongratsLogo();
     tasks.set(taskId, { status: 'generating logo', progress: 50 });
     io.emit('taskUpdate', { taskId, status: 'generating logo', progress: 50 });
     
+    console.log('Создание поздравительной открытки...');
     const greetingCard = await createGreetingCard(imagePath, congratsLogo);
     tasks.set(taskId, { status: 'creating card', progress: 75 });
     io.emit('taskUpdate', { taskId, status: 'creating card', progress: 75 });
 
+    console.log('Сохранение открытки...');
     const cardUrl = await saveAndGetUrl(greetingCard, `greeting-card-${taskId}.png`);
     
+    console.log('Обработка завершена');
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
     io.emit('cardGenerated', { taskId, cardUrl });
   } catch (error) {
-    console.error('Ошибка обработки изображения:', error);
+    console.error(`Ошибка обработки изображения для задачи ${taskId}:`, error);
     tasks.set(taskId, { status: 'error', error: error.message });
     io.emit('taskUpdate', { taskId, status: 'error', error: error.message });
   } finally {
     try {
       await fs.unlink(imagePath);
+      console.log(`Временный файл ${imagePath} удален`);
     } catch (unlinkError) {
       console.error('Ошибка удаления временного файла:', unlinkError);
     }
