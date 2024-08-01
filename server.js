@@ -9,6 +9,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const sharp = require('sharp');
+const fetch = require('node-fetch');
 
 dotenv.config();
 
@@ -110,8 +111,6 @@ async function generateCongratsLogo() {
   }
 }
 
-// ... (предыдущий код остается без изменений)
-
 async function createGreetingCard(imagePath, logoUrl) {
   try {
     const baseImage = sharp(imagePath);
@@ -205,7 +204,19 @@ async function createFestiveFrame() {
     .toBuffer();
 }
 
-// ... (остальной код остается без изменений)
+async function downloadImage(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('Ошибка при загрузке изображения:', error);
+    throw error;
+  }
+}
 
 async function saveAndGetUrl(imageBuffer, filename) {
   try {
