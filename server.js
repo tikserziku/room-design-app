@@ -105,11 +105,10 @@ async function processImageAsync(taskId, imagePath, style) {
 
 async function applyPicassoStyle(imagePath) {
   try {
-    const imageData = await fs.readFile(imagePath);
-    const base64Image = imageData.toString('base64');
+    const imageBuffer = await fs.readFile(imagePath);
 
     const response = await openai.images.edit({
-      image: base64Image,
+      image: imageBuffer,
       prompt: "Transform this image into the style of Pablo Picasso, emphasizing cubist elements and bold, abstract shapes.",
       n: 1,
       size: "1024x1024"
