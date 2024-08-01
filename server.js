@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const Anthropic = require('@anthropic-ai/sdk');
+const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 const http = require('http');
@@ -95,12 +95,14 @@ async function processImageAsync(taskId, imagePath, style) {
 
 async function applyPicassoStyle(imagePath) {
   try {
+    console.log('Начало применения стиля Пикассо');
     // Считываем изображение
     const imageBuffer = await fs.readFile(imagePath);
     const base64Image = imageBuffer.toString('base64');
 
+    console.log('Изображение считано, начинаем анализ с Anthropic');
     // Анализируем изображение с помощью Anthropic API
-    const analysisMessage = await anthropic.messages.create({
+    const analysisMessage = await anthropic.beta.messages.create({
       model: "claude-3-opus-20240229",
       max_tokens: 1000,
       messages: [
@@ -124,6 +126,7 @@ async function applyPicassoStyle(imagePath) {
       ]
     });
 
+    console.log('Анализ Anthropic завершен, формируем промпт для OpenAI');
     const imageAnalysis = analysisMessage.content[0].text;
 
     // Создаем промпт для OpenAI на основе анализа
@@ -132,6 +135,7 @@ async function applyPicassoStyle(imagePath) {
     Additionally, include the text "Happy Birthday Visaginas" in English, integrated into the composition in a stylistic manner. 
     The text should be clearly readable but artistically incorporated into the Picasso-style image.`;
 
+    console.log('Начинаем генерацию изображения с OpenAI');
     // Генерируем новое изображение с помощью OpenAI
     const response = await openai.images.generate({
       model: "dall-e-3",
@@ -140,12 +144,14 @@ async function applyPicassoStyle(imagePath) {
       size: "1024x1024",
     });
 
+    console.log('Изображение сгенерировано, сохраняем результат');
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
     const outputPath = imagePath.replace('.jpg', '-picasso.png');
     await fs.writeFile(outputPath, picassoImageBuffer);
     
+    console.log('Стиль Пикассо успешно применен');
     return outputPath;
   } catch (error) {
     console.error('Ошибка при применении стиля Пикассо:', error);
