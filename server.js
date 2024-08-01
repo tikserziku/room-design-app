@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 const http = require('http');
@@ -19,14 +18,10 @@ const io = socketIo(server);
 
 const upload = multer({ dest: 'uploads/' });
 
-if (!process.env.ANTHROPIC_API_KEY || !process.env.OPENAI_API_KEY) {
-  console.error('API ключи не установлены в переменных окружения');
+if (!process.env.OPENAI_API_KEY) {
+  console.error('API ключ OpenAI не установлен в переменных окружения');
   process.exit(1);
 }
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -103,7 +98,7 @@ async function generateCongratsLogo() {
   try {
     const response = await openai.images.generate({
       model: "dall-e-3",
-      prompt: "Создайте праздничный логотип с текстом 'Visaginas birthday' на английском языке. Логотип должен быть ярким, праздничным и отражать атмосферу городского праздника.",
+      prompt: "Создайте праздничный логотип с текстом 'Visaginas birthday' на английском языке. Логотип должен быть ярким, праздничным и отражать атмосферу городского праздника. Логотип должен быть круглым.",
       n: 1,
       size: "1024x1024",
     });
@@ -122,8 +117,7 @@ async function createGreetingCard(imagePath, logoUrl) {
 
     const WIDTH = 1080;
     const HEIGHT = 1920;
-    const LOGO_HEIGHT = Math.floor(HEIGHT * 0.3); // 30% от высоты
-    const LOGO_TOP = HEIGHT - LOGO_HEIGHT;
+    const LOGO_SIZE = Math.floor(WIDTH * 0.25); // Размер логотипа - 25% от ширины изображения
 
     // Изменяем размер и обрезаем базовое изображение до формата 9:16
     const resizedBase = await baseImage
@@ -137,48 +131,21 @@ async function createGreetingCard(imagePath, logoUrl) {
     
     console.log('Базовое изображение изменено');
 
-    // Создаем праздничную рамку
-    const frame = await createFestiveFrame(WIDTH, HEIGHT);
-    console.log('Праздничная рамка создана');
-
-    // Изменяем размер логотипа
+    // Изменяем размер логотипа и делаем его круглым
     const resizedLogo = await sharp(logoBuffer)
-      .resize({
-        width: WIDTH,
-        height: LOGO_HEIGHT,
-        fit: sharp.fit.inside
-      })
+      .resize(LOGO_SIZE, LOGO_SIZE)
+      .circle()
       .toBuffer();
     console.log('Логотип изменен');
-
-    // Создаем полупрозрачный фон для логотипа
-    const logoBackground = await sharp({
-      create: {
-        width: WIDTH,
-        height: LOGO_HEIGHT,
-        channels: 4,
-        background: { r: 255, g: 255, b: 255, alpha: 0.8 }
-      }
-    })
-    .png()
-    .toBuffer();
-    console.log('Фон для логотипа создан');
 
     // Собираем финальное изображение
     console.log('Начало сборки финального изображения');
     return sharp(resizedBase)
       .composite([
-        { input: frame, blend: 'over' },
-        { 
-          input: logoBackground,
-          top: LOGO_TOP,
-          left: 0
-        },
         {
           input: resizedLogo,
-          top: LOGO_TOP,
-          left: 0,
-          gravity: 'center'
+          top: HEIGHT - LOGO_SIZE - 20,
+          left: WIDTH - LOGO_SIZE - 20,
         }
       ])
       .toBuffer();
@@ -186,25 +153,6 @@ async function createGreetingCard(imagePath, logoUrl) {
     console.error('Ошибка при создании поздравительной открытки:', error);
     throw error;
   }
-}
-
-async function createFestiveFrame(width, height) {
-  const frameWidth = 20;
-  const svgImage = `
-    <svg width="${width}" height="${height}">
-      <rect x="0" y="0" width="${width}" height="${height}" fill="none" 
-            stroke="gold" stroke-width="${frameWidth}" />
-      <circle cx="${width/2}" cy="${height/2}" r="${width/4}" fill="none" 
-              stroke="gold" stroke-width="${frameWidth/2}" stroke-dasharray="10,10" />
-      <text x="${width/2}" y="${height-height*0.3-10}" font-family="Arial" font-size="40" 
-            fill="gold" text-anchor="middle">С Днем Рождения, Висагинас!</text>
-    </svg>
-  `;
-
-  return sharp(Buffer.from(svgImage))
-    .resize(width, height)
-    .png()
-    .toBuffer();
 }
 
 async function downloadImage(url) {
