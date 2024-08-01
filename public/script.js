@@ -1,5 +1,9 @@
 const socket = io();
 let currentTaskId = null;
+let selectedStyle = 'normal';
+
+document.getElementById('styleNormal').addEventListener('click', () => setStyle('normal'));
+document.getElementById('stylePicasso').addEventListener('click', () => setStyle('picasso'));
 
 document.getElementById('uploadPhoto').addEventListener('click', () => {
     document.getElementById('fileInput').click();
@@ -21,6 +25,12 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 });
 
 document.getElementById('generateDesign').addEventListener('click', handleGenerateDesign);
+
+function setStyle(style) {
+    selectedStyle = style;
+    document.getElementById('styleNormal').classList.toggle('bg-blue-700', style === 'normal');
+    document.getElementById('stylePicasso').classList.toggle('bg-green-700', style === 'picasso');
+}
 
 function isValidImageType(file) {
     const acceptedImageTypes = ['image/jpeg', 'image/png'];
@@ -70,6 +80,7 @@ async function handleGenerateDesign() {
 
     const formData = new FormData();
     formData.append('photo', file);
+    formData.append('style', selectedStyle);
 
     try {
         showProgressBar();
