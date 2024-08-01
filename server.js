@@ -190,29 +190,19 @@ async function createGreetingCard(imagePath, logoUrl) {
 
 async function createFestiveFrame(width, height) {
   const frameWidth = 20;
+  const svgImage = `
+    <svg width="${width}" height="${height}">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="none" 
+            stroke="gold" stroke-width="${frameWidth}" />
+      <circle cx="${width/2}" cy="${height/2}" r="${width/4}" fill="none" 
+              stroke="gold" stroke-width="${frameWidth/2}" stroke-dasharray="10,10" />
+      <text x="${width/2}" y="${height-height*0.3-10}" font-family="Arial" font-size="40" 
+            fill="gold" text-anchor="middle">С Днем Рождения, Висагинас!</text>
+    </svg>
+  `;
 
-  return sharp({
-    create: {
-      width: width,
-      height: height,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    }
-  })
-    .composite([
-      {
-        input: Buffer.from(`<svg>
-          <rect x="0" y="0" width="${width}" height="${height}" fill="none" 
-                stroke="gold" stroke-width="${frameWidth}" />
-          <circle cx="${width/2}" cy="${height/2}" r="${width/4}" fill="none" 
-                  stroke="gold" stroke-width="${frameWidth/2}" stroke-dasharray="10,10" />
-          <text x="${width/2}" y="${height-height*0.3-10}" font-family="Arial" font-size="40" 
-                fill="gold" text-anchor="middle">С Днем Рождения, Висагинас!</text>
-        </svg>`),
-        top: 0,
-        left: 0
-      }
-    ])
+  return sharp(Buffer.from(svgImage))
+    .resize(width, height)
     .png()
     .toBuffer();
 }
