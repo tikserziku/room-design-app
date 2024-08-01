@@ -32,7 +32,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Обслуживание статических файлов из папки public
 app.use(express.static('public'));
+// Обслуживание сгенерированных изображений
+app.use('/generated', express.static(path.join(__dirname, 'generated')));
 
 const tasks = new Map();
 
@@ -68,19 +71,18 @@ async function processImageAsync(taskId, imagePath, style) {
     tasks.set(taskId, { status: 'analyzing', progress: 25 });
     io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 25 });
     
-    let processedImagePath = imagePath;
+    let processedImageUrl = '';
     if (style === 'picasso') {
       console.log('Применение стиля Пикассо...');
-      processedImagePath = await applyPicassoStyle(imagePath, taskId);
+      processedImageUrl = await applyPicassoStyle(imagePath, taskId);
       tasks.set(taskId, { status: 'applying style', progress: 75 });
       io.emit('taskUpdate', { taskId, status: 'applying style', progress: 75 });
     }
     
     console.log('Обработка завершена');
-    const cardUrl = `/generated/${path.basename(processedImagePath)}`;
     tasks.set(taskId, { status: 'completed' });
     io.emit('taskUpdate', { taskId, status: 'completed' });
-    io.emit('cardGenerated', { taskId, cardUrl });
+    io.emit('cardGenerated', { taskId, cardUrl: processedImageUrl });
   } catch (error) {
     console.error(`Ошибка обработки изображения для задачи ${taskId}:`, error);
     tasks.set(taskId, { status: 'error', error: error.message });
@@ -162,11 +164,16 @@ async function applyPicassoStyle(imagePath, taskId) {
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
-    const outputPath = imagePath.replace(/\.[^/.]+$/, '') + '-picasso.png';
+    // Убедимся, что папка 'generated' существует
+    const generatedDir = path.join(__dirname, 'generated');
+    await fs.mkdir(generatedDir, { recursive: true });
+    
+    const outputFileName = `${taskId}-picasso.png`;
+    const outputPath = path.join(generatedDir, outputFileName);
     await fs.writeFile(outputPath, picassoImageBuffer);
     
-    console.log(`[${taskId}] Стиль Пикассо успешно применен`);
-    return outputPath;
+    console.log(`[${taskId}] Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
+    return `/generated/${outputFileName}`;  // Возвращаем URL для клиента
   } catch (error) {
     console.error(`[${taskId}] Ошибка при применении стиля Пикассо:`, error);
     throw error;
