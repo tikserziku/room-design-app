@@ -113,6 +113,7 @@ async function generateCongratsLogo() {
 
 async function createGreetingCard(imagePath, logoUrl) {
   try {
+    console.log('Начало создания поздравительной открытки');
     const baseImage = sharp(imagePath);
     const logoBuffer = await downloadImage(logoUrl);
 
@@ -125,9 +126,12 @@ async function createGreetingCard(imagePath, logoUrl) {
         position: sharp.strategy.entropy
       })
       .toBuffer();
+    
+    console.log('Базовое изображение изменено');
 
-    // Создаем праздничную рамку
-    const frame = await createFestiveFrame();
+    // Создаем праздничную рамку с теми же размерами, что и базовое изображение
+    const frame = await createFestiveFrame(1080, 1920);
+    console.log('Праздничная рамка создана');
 
     // Изменяем размер логотипа
     const resizedLogo = await sharp(logoBuffer)
@@ -137,6 +141,7 @@ async function createGreetingCard(imagePath, logoUrl) {
         fit: sharp.fit.inside
       })
       .toBuffer();
+    console.log('Логотип изменен');
 
     // Создаем белый фон для логотипа
     const logoBackground = await sharp({
@@ -149,8 +154,10 @@ async function createGreetingCard(imagePath, logoUrl) {
     })
     .png()
     .toBuffer();
+    console.log('Фон для логотипа создан');
 
     // Собираем финальное изображение
+    console.log('Начало сборки финального изображения');
     return sharp(resizedBase)
       .composite([
         { input: frame, blend: 'over' },
@@ -173,9 +180,7 @@ async function createGreetingCard(imagePath, logoUrl) {
   }
 }
 
-async function createFestiveFrame() {
-  const width = 1080;
-  const height = 1920;
+async function createFestiveFrame(width, height) {
   const frameWidth = 20;
 
   return sharp({
