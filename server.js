@@ -45,6 +45,7 @@ io.on('connection', (socket) => {
 
 app.post('/upload', upload.single('photo'), async (req, res) => {
   try {
+    console.log('Начало обработки загрузки');
     if (!req.file) {
       throw new Error('Файл не был загружен');
     }
@@ -52,6 +53,7 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
     const style = req.body.style || 'normal';
     tasks.set(taskId, { status: 'processing', style });
     res.json({ taskId });
+    console.log(`Задача ${taskId} создана, начинаем обработку`);
     processImageAsync(taskId, req.file.path, style);
   } catch (error) {
     console.error('Ошибка обработки загрузки:', error);
@@ -69,7 +71,7 @@ async function processImageAsync(taskId, imagePath, style) {
     let processedImagePath = imagePath;
     if (style === 'picasso') {
       console.log('Применение стиля Пикассо...');
-      processedImagePath = await applyPicassoStyle(imagePath);
+      processedImagePath = await applyPicassoStyle(imagePath, taskId);
       tasks.set(taskId, { status: 'applying style', progress: 75 });
       io.emit('taskUpdate', { taskId, status: 'applying style', progress: 75 });
     }
@@ -93,44 +95,49 @@ async function processImageAsync(taskId, imagePath, style) {
   }
 }
 
-async function applyPicassoStyle(imagePath) {
+async function applyPicassoStyle(imagePath, taskId) {
   try {
-    console.log('Начало применения стиля Пикассо');
+    console.log(`[${taskId}] Начало применения стиля Пикассо`);
     
     // Считываем и обрабатываем изображение
+    console.log(`[${taskId}] Обработка изображения`);
     const imageBuffer = await sharp(imagePath)
       .jpeg() // Конвертируем изображение в JPEG
       .toBuffer();
     
     const base64Image = imageBuffer.toString('base64');
+    console.log(`[${taskId}] Изображение преобразовано в base64`);
 
-    console.log('Изображение обработано, начинаем анализ с Anthropic');
+    console.log(`[${taskId}] Начало анализа с Anthropic`);
     // Анализируем изображение с помощью Anthropic API
-    const analysisMessage = await anthropic.beta.messages.create({
-      model: "claude-3-opus-20240229",
-      max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/jpeg",
-                data: base64Image
+    const analysisMessage = await Promise.race([
+      anthropic.beta.messages.create({
+        model: "claude-3-opus-20240229",
+        max_tokens: 1000,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: "image/jpeg",
+                  data: base64Image
+                }
+              },
+              {
+                type: "text",
+                text: "Analyze this image and describe its key elements and overall composition. Focus on aspects that would be important to recreate in a Picasso-style painting."
               }
-            },
-            {
-              type: "text",
-              text: "Analyze this image and describe its key elements and overall composition. Focus on aspects that would be important to recreate in a Picasso-style painting."
-            }
-          ]
-        }
-      ]
-    });
+            ]
+          }
+        ]
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000)) // 60 секунд таймаут
+    ]);
 
-    console.log('Анализ Anthropic завершен, формируем промпт для OpenAI');
+    console.log(`[${taskId}] Анализ Anthropic завершен, формируем промпт для OpenAI`);
     const imageAnalysis = analysisMessage.content[0].text;
 
     // Создаем промпт для OpenAI на основе анализа
@@ -139,26 +146,29 @@ async function applyPicassoStyle(imagePath) {
     Additionally, include the text "Happy Birthday Visaginas" in English, integrated into the composition in a stylistic manner. 
     The text should be clearly readable but artistically incorporated into the Picasso-style image.`;
 
-    console.log('Начинаем генерацию изображения с OpenAI');
+    console.log(`[${taskId}] Начинаем генерацию изображения с OpenAI`);
     // Генерируем новое изображение с помощью OpenAI
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: openaiPrompt,
-      n: 1,
-      size: "1024x1024",
-    });
+    const response = await Promise.race([
+      openai.images.generate({
+        model: "dall-e-3",
+        prompt: openaiPrompt,
+        n: 1,
+        size: "1024x1024",
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000)) // 60 секунд таймаут
+    ]);
 
-    console.log('Изображение сгенерировано, сохраняем результат');
+    console.log(`[${taskId}] Изображение сгенерировано, сохраняем результат`);
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
     const outputPath = imagePath.replace(/\.[^/.]+$/, '') + '-picasso.png';
     await fs.writeFile(outputPath, picassoImageBuffer);
     
-    console.log('Стиль Пикассо успешно применен');
+    console.log(`[${taskId}] Стиль Пикассо успешно применен`);
     return outputPath;
   } catch (error) {
-    console.error('Ошибка при применении стиля Пикассо:', error);
+    console.error(`[${taskId}] Ошибка при применении стиля Пикассо:`, error);
     throw error;
   }
 }
