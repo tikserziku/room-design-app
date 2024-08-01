@@ -114,8 +114,12 @@ async function generateCongratsLogo() {
 async function createGreetingCard(imagePath, logoUrl) {
   try {
     const baseImage = sharp(imagePath);
-    const logoImage = await downloadImage(logoUrl);
+    const logoBuffer = await downloadImage(logoUrl);
 
+    // Получаем метаданные базового изображения
+    const baseMetadata = await baseImage.metadata();
+
+    // Изменяем размер и расширяем базовое изображение
     const resizedBase = await baseImage
       .resize(800, 600, { fit: 'cover' })
       .extend({
@@ -124,34 +128,48 @@ async function createGreetingCard(imagePath, logoUrl) {
       })
       .toBuffer();
 
+    // Получаем метаданные расширенного базового изображения
+    const extendedMetadata = await sharp(resizedBase).metadata();
+
+    // Изменяем размер логотипа
+    const resizedLogo = await sharp(logoBuffer)
+      .resize(Math.floor(extendedMetadata.width / 4), Math.floor(extendedMetadata.height / 4), {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .toBuffer();
+
+    // Накладываем логотип на базовое изображение
     return sharp(resizedBase)
       .composite([
         {
-          input: logoImage,
-          top: 10, left: 10,
+          input: resizedLogo,
+          top: 10,
+          left: 10,
           gravity: 'northeast'
         }
       ])
       .toBuffer();
   } catch (error) {
-    console.error('Ошибка создания поздравительной открытки:', error);
+    console.error('Ошибка при создании поздравительной открытки:', error);
     throw error;
   }
 }
 
 async function downloadImage(url) {
-  const response = await fetch(url);
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('Ошибка при загрузке изображения:', error);
+    throw error;
+  }
 }
 
-async function saveAndGetUrl(imageBuffer, filename) {
-  const publicPath = path.join(__dirname, 'public', 'generated');
-  await fs.mkdir(publicPath, { recursive: true });
-  const filePath = path.join(publicPath, filename);
-  await fs.writeFile(filePath, imageBuffer);
-  return `/generated/${filename}`;
-}
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
