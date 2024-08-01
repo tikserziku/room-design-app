@@ -131,12 +131,20 @@ async function createGreetingCard(imagePath, logoUrl) {
     
     console.log('Базовое изображение изменено');
 
-    // Изменяем размер логотипа и делаем его круглым
+    // Создаем круглую маску для логотипа
+    const roundedCorners = Buffer.from(`
+      <svg><circle cx="${LOGO_SIZE/2}" cy="${LOGO_SIZE/2}" r="${LOGO_SIZE/2}" /></svg>
+    `);
+
+    // Изменяем размер логотипа и применяем круглую маску
     const resizedLogo = await sharp(logoBuffer)
       .resize(LOGO_SIZE, LOGO_SIZE)
-      .circle()
+      .composite([{
+        input: roundedCorners,
+        blend: 'dest-in'
+      }])
       .toBuffer();
-    console.log('Логотип изменен');
+    console.log('Логотип изменен и сделан круглым');
 
     // Собираем финальное изображение
     console.log('Начало сборки финального изображения');
