@@ -44,33 +44,42 @@ app.post('/upload', upload.single('photo'), async (req, res) => {
       throw new Error('Файл не был загружен');
     }
     const taskId = uuidv4();
-    tasks.set(taskId, { status: 'processing' });
+    const style = req.body.style || 'normal';
+    tasks.set(taskId, { status: 'processing', style });
     res.json({ taskId });
-    processImageAsync(taskId, req.file.path);
+    processImageAsync(taskId, req.file.path, style);
   } catch (error) {
     console.error('Ошибка обработки загрузки:', error);
     res.status(400).json({ error: error.message });
   }
 });
 
-async function processImageAsync(taskId, imagePath) {
+async function processImageAsync(taskId, imagePath, style) {
   try {
-    console.log(`Начало обработки изображения для задачи ${taskId}`);
+    console.log(`Начало обработки изображения для задачи ${taskId}, стиль: ${style}`);
     
     tasks.set(taskId, { status: 'analyzing', progress: 25 });
     io.emit('taskUpdate', { taskId, status: 'analyzing', progress: 25 });
     
+    let processedImagePath = imagePath;
+    if (style === 'picasso') {
+      console.log('Применение стиля Пикассо...');
+      processedImagePath = await applyPicassoStyle(imagePath);
+      tasks.set(taskId, { status: 'applying style', progress: 50 });
+      io.emit('taskUpdate', { taskId, status: 'applying style', progress: 50 });
+    }
+    
     console.log('Генерация поздравительного логотипа...');
     const congratsLogo = await generateCongratsLogo();
     console.log('Поздравительный логотип сгенерирован:', congratsLogo);
-    tasks.set(taskId, { status: 'generating logo', progress: 50 });
-    io.emit('taskUpdate', { taskId, status: 'generating logo', progress: 50 });
+    tasks.set(taskId, { status: 'generating logo', progress: 75 });
+    io.emit('taskUpdate', { taskId, status: 'generating logo', progress: 75 });
     
     console.log('Создание поздравительной открытки...');
-    const greetingCard = await createGreetingCard(imagePath, congratsLogo);
+    const greetingCard = await createGreetingCard(processedImagePath, congratsLogo);
     console.log('Поздравительная открытка создана');
-    tasks.set(taskId, { status: 'creating card', progress: 75 });
-    io.emit('taskUpdate', { taskId, status: 'creating card', progress: 75 });
+    tasks.set(taskId, { status: 'creating card', progress: 90 });
+    io.emit('taskUpdate', { taskId, status: 'creating card', progress: 90 });
 
     console.log('Сохранение открытки...');
     const cardUrl = await saveAndGetUrl(greetingCard, `greeting-card-${taskId}.png`);
@@ -91,6 +100,31 @@ async function processImageAsync(taskId, imagePath) {
     } catch (unlinkError) {
       console.error('Ошибка удаления временного файла:', unlinkError);
     }
+  }
+}
+
+async function applyPicassoStyle(imagePath) {
+  try {
+    const imageData = await fs.readFile(imagePath);
+    const base64Image = imageData.toString('base64');
+
+    const response = await openai.images.edit({
+      image: base64Image,
+      prompt: "Transform this image into the style of Pablo Picasso, emphasizing cubist elements and bold, abstract shapes.",
+      n: 1,
+      size: "1024x1024"
+    });
+
+    const picassoImageUrl = response.data[0].url;
+    const picassoImageBuffer = await downloadImage(picassoImageUrl);
+    
+    const outputPath = imagePath.replace('.jpg', '-picasso.png');
+    await fs.writeFile(outputPath, picassoImageBuffer);
+    
+    return outputPath;
+  } catch (error) {
+    console.error('Ошибка при применении стиля Пикассо:', error);
+    throw error;
   }
 }
 
