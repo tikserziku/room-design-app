@@ -100,6 +100,7 @@ async function processImageAsync(taskId, imagePath, style) {
     }
   }
 }
+
 async function applyPicassoStyle(imagePath, taskId) {
   try {
     sendStatusUpdate(taskId, 'Начало применения стиля Пикассо');
@@ -180,22 +181,6 @@ async function applyPicassoStyle(imagePath, taskId) {
     if (!textPresent) {
       throw new Error('Не удалось сгенерировать изображение с текстом после нескольких попыток');
     }
-
-    const generatedDir = path.join(__dirname, 'generated');
-    await fs.mkdir(generatedDir, { recursive: true });
-    
-    const outputFileName = `${taskId}-picasso.png`;
-    const outputPath = path.join(generatedDir, outputFileName);
-    await fs.writeFile(outputPath, picassoImageBuffer);
-    
-    sendStatusUpdate(taskId, `Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
-    return `/generated/${outputFileName}`;
-  } catch (error) {
-    sendStatusUpdate(taskId, `Ошибка при применении стиля Пикассо: ${error.message}`);
-    throw error;
-  }
-}
-
 
     const generatedDir = path.join(__dirname, 'generated');
     await fs.mkdir(generatedDir, { recursive: true });
