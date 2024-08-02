@@ -141,17 +141,25 @@ async function applyPicassoStyle(imagePath, taskId) {
     sendStatusUpdate(taskId, 'Анализ Anthropic завершен, формируем промпт для OpenAI');
     const imageAnalysis = analysisMessage.content[0].text;
 
-    const openaiPrompt = `Create a new image in the style of Pablo Picasso based on the following description: ${imageAnalysis}. 
-    The image MUST incorporate cubist elements and bold, abstract shapes typical of Picasso's style. 
-    MOST IMPORTANTLY, you MUST include the exact text "Happy Birthday Visaginas" as a prominent and unmissable part of the image. 
-    The text "Happy Birthday Visaginas" should be:
-    1. Large and clearly readable
-    2. Integrated artistically into the Picasso-style composition
-    3. A central focus of the image, not a small or background element
-    4. Possibly broken up or distorted in a cubist style, but still fully readable
-    5. Using contrasting colors to stand out from the background
-    Ensure that the text "Happy Birthday Visaginas" is impossible to miss and is a key element of the overall design. 
-    The image is not complete without this text prominently displayed.`;
+    const openaiPrompt = `Create a new image in the style of Pablo Picasso with the following requirements:
+
+1. Base the overall composition on this description: ${imageAnalysis}
+2. Incorporate cubist elements and bold, abstract shapes typical of Picasso's style.
+3. CRUCIAL REQUIREMENT: The image MUST VISUALLY INCLUDE the exact text "Happy Birthday Visaginas" as part of the picture itself.
+
+Specific instructions for the text "Happy Birthday Visaginas":
+- It MUST BE VISUALLY PRESENT in the image as if painted or drawn, not just mentioned in the description.
+- Make it LARGE, occupying at least 1/3 of the image's width or height.
+- Ensure it is CLEARLY READABLE, even if stylized.
+- Integrate it artistically into the Picasso-style composition.
+- Place it as a central focus, not as a small or background element.
+- You may break up or distort the text in a cubist style, but it must remain fully readable.
+- Use contrasting colors to make it stand out from the background.
+- Consider incorporating the text into key elements of the scene, such as forming parts of objects or figures.
+
+The presence of the text "Happy Birthday Visaginas" in the image is ABSOLUTELY MANDATORY. The image is incomplete without this text prominently and visually displayed as a key artistic element of the design.
+
+Remember, the text should appear as if it were painted or drawn directly onto the canvas, not added as a separate layer or caption.`;
 
     sendStatusUpdate(taskId, 'Начинаем генерацию изображения с OpenAI');
     
