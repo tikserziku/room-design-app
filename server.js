@@ -32,9 +32,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Обслуживание статических файлов из папки public
 app.use(express.static('public'));
-// Обслуживание сгенерированных изображений
 app.use('/generated', express.static(path.join(__dirname, 'generated')));
 
 const tasks = new Map();
@@ -116,56 +114,59 @@ async function applyPicassoStyle(imagePath, taskId) {
     sendStatusUpdate(taskId, 'Изображение преобразовано в base64');
 
     sendStatusUpdate(taskId, 'Начало анализа с Anthropic');
-    const analysisMessage = await Promise.race([
-      anthropic.beta.messages.create({
-        model: "claude-3-opus-20240229",
-        max_tokens: 1000,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: base64Image
-                }
-              },
-              {
-                type: "text",
-                text: "Analyze this image and describe its key elements and overall composition. Focus on aspects that would be important to recreate in a Picasso-style painting."
+    const analysisMessage = await anthropic.beta.messages.create({
+      model: "claude-3-opus-20240229",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/jpeg",
+                data: base64Image
               }
-            ]
-          }
-        ]
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
-    ]);
+            },
+            {
+              type: "text",
+              text: "Analyze this image and describe its key elements and overall composition. Focus on aspects that would be important to recreate in a Picasso-style painting."
+            }
+          ]
+        }
+      ]
+    });
 
     sendStatusUpdate(taskId, 'Анализ Anthropic завершен, формируем промпт для OpenAI');
     const imageAnalysis = analysisMessage.content[0].text;
 
     const openaiPrompt = `Create a new image in the style of Pablo Picasso based on the following description: ${imageAnalysis}. 
     The image should incorporate cubist elements and bold, abstract shapes typical of Picasso's style. 
-    Additionally, include the text "Happy Birthday Visaginas" in English, integrated into the composition in a stylistic manner. 
-    The text should be clearly readable but artistically incorporated into the Picasso-style image.`;
+    Importantly, include the text "Happy Birthday Visaginas" prominently within the image. 
+    The text should be large, clearly readable, and artistically integrated into the Picasso-style composition. 
+    Ensure that the text stands out and is a key element of the overall design.`;
 
     sendStatusUpdate(taskId, 'Начинаем генерацию изображения с OpenAI');
-    const response = await Promise.race([
-      openai.images.generate({
-        model: "dall-e-3",
-        prompt: openaiPrompt,
-        n: 1,
-        size: "1024x1024",
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
-    ]);
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: openaiPrompt,
+      n: 1,
+      size: "1024x1024",
+    });
 
-    sendStatusUpdate(taskId, 'Изображение сгенерировано, сохраняем результат');
+    sendStatusUpdate(taskId, 'Изображение сгенерировано, проверяем наличие текста');
     const picassoImageUrl = response.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
+    // Проверка наличия текста с помощью Anthropic
+    const textPresent = await checkTextWithAnthropic(picassoImageBuffer, taskId);
+    if (!textPresent) {
+      sendStatusUpdate(taskId, 'Текст не обнаружен на изображении, пробуем еще раз');
+      // Здесь можно добавить логику для повторной генерации изображения
+      // Например, рекурсивный вызов applyPicassoStyle или уведомление пользователя
+    }
+
     const generatedDir = path.join(__dirname, 'generated');
     await fs.mkdir(generatedDir, { recursive: true });
     
@@ -179,6 +180,34 @@ async function applyPicassoStyle(imagePath, taskId) {
     sendStatusUpdate(taskId, `Ошибка при применении стиля Пикассо: ${error.message}`);
     throw error;
   }
+}
+
+async function checkTextWithAnthropic(imageBuffer, taskId) {
+  const base64Image = imageBuffer.toString('base64');
+  const analysisMessage = await anthropic.beta.messages.create({
+    model: "claude-3-opus-20240229",
+    max_tokens: 1000,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/png",
+              data: base64Image
+            }
+          },
+          {
+            type: "text",
+            text: "Does this image contain the text 'Happy Birthday Visaginas'? Respond with only 'Yes' or 'No'."
+          }
+        ]
+      }
+    ]
+  });
+  return analysisMessage.content[0].text.toLowerCase().includes('yes');
 }
 
 async function downloadImage(url) {
