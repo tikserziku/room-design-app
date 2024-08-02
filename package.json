@@ -1,7 +1,7 @@
 {
-  "name": "room-design-app",
-  "version": "1.0.0",
-  "description": "Web app for creating greeting cards for Visaginas using Anthropic and OpenAI APIs",
+  "name": "visaginas-birthday-card-app",
+  "version": "1.0.1",
+  "description": "Web app for creating Picasso-style greeting cards for Visaginas using Anthropic and OpenAI APIs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -16,7 +16,8 @@
     "file-type": "^16.5.4",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.0",
-    "sharp": "^0.32.6"
+    "sharp": "^0.32.6",
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
