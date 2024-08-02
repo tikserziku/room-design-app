@@ -141,61 +141,51 @@ async function applyPicassoStyle(imagePath, taskId) {
     sendStatusUpdate(taskId, 'Анализ Anthropic завершен, формируем промпт для OpenAI');
     const imageAnalysis = analysisMessage.content[0].text;
 
-    const openaiPrompt = `Create a new image in the style of Pablo Picasso with the following requirements:
-
-1. Base the overall composition on this description: ${imageAnalysis}
-2. Incorporate cubist elements and bold, abstract shapes typical of Picasso's style.
-3. CRUCIAL REQUIREMENT: The image MUST VISUALLY INCLUDE the exact text "Happy Birthday Visaginas" as part of the picture itself.
-
-Specific instructions for the text "Happy Birthday Visaginas":
-- It MUST BE VISUALLY PRESENT in the image as if painted or drawn, not just mentioned in the description.
-- Make it LARGE, occupying at least 1/3 of the image's width or height.
-- Ensure it is CLEARLY READABLE, even if stylized.
-- Integrate it artistically into the Picasso-style composition.
-- Place it as a central focus, not as a small or background element.
-- You may break up or distort the text in a cubist style, but it must remain fully readable.
-- Use contrasting colors to make it stand out from the background.
-- Consider incorporating the text into key elements of the scene, such as forming parts of objects or figures.
-
-The presence of the text "Happy Birthday Visaginas" in the image is ABSOLUTELY MANDATORY. The image is incomplete without this text prominently and visually displayed as a key artistic element of the design.
-
-Remember, the text should appear as if it were painted or drawn directly onto the canvas, not added as a separate layer or caption.`;
+    const imagePrompt = `Create a new image in the style of Pablo Picasso based on the following description: ${imageAnalysis}. 
+    The image should incorporate cubist elements and bold, abstract shapes typical of Picasso's style.`;
 
     sendStatusUpdate(taskId, 'Начинаем генерацию изображения с OpenAI');
-    
-    let textPresent = false;
-    let attempts = 0;
-    let picassoImageBuffer;
+    const imageResponse = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: imagePrompt,
+      n: 1,
+      size: "1024x1024",
+    });
 
-    while (!textPresent && attempts < 3) {
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: openaiPrompt,
-        n: 1,
-        size: "1024x1024",
-      });
+    const picassoImageUrl = imageResponse.data[0].url;
+    const picassoImageBuffer = await downloadImage(picassoImageUrl);
 
-      sendStatusUpdate(taskId, `Изображение сгенерировано, проверяем наличие текста (попытка ${attempts + 1})`);
-      const picassoImageUrl = response.data[0].url;
-      picassoImageBuffer = await downloadImage(picassoImageUrl);
-      
-      textPresent = await checkTextWithAnthropic(picassoImageBuffer, taskId);
-      if (!textPresent) {
-        sendStatusUpdate(taskId, `Текст не обнаружен на изображении, пробуем еще раз (попытка ${attempts + 1})`);
-        attempts++;
-      }
-    }
+    sendStatusUpdate(taskId, 'Генерация текста для наложения');
+    const textPrompt = `Create a stylized text image of "Happy Birthday Visaginas" that would fit well with a Picasso-style painting. 
+    The text should be bold, colorful, and slightly abstract, matching Picasso's artistic style. 
+    Make sure the text is large and clearly readable, using contrasting colors to stand out.`;
 
-    if (!textPresent) {
-      throw new Error('Не удалось сгенерировать изображение с текстом после нескольких попыток');
-    }
+    const textResponse = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: textPrompt,
+      n: 1,
+      size: "1024x256",  // Широкий и низкий формат для текста
+    });
+
+    const textImageUrl = textResponse.data[0].url;
+    const textImageBuffer = await downloadImage(textImageUrl);
+
+    sendStatusUpdate(taskId, 'Наложение текста на изображение');
+    const finalImage = await sharp(picassoImageBuffer)
+      .composite([
+        {
+          input: textImageBuffer,
+          gravity: 'south',  // Размещаем текст внизу изображения
+        }
+      ])
+      .toBuffer();
 
     const generatedDir = path.join(__dirname, 'generated');
     await fs.mkdir(generatedDir, { recursive: true });
     
     const outputFileName = `${taskId}-picasso.png`;
     const outputPath = path.join(generatedDir, outputFileName);
-    await fs.writeFile(outputPath, picassoImageBuffer);
+    await fs.writeFile(outputPath, finalImage);
     
     sendStatusUpdate(taskId, `Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
     return `/generated/${outputFileName}`;
@@ -203,36 +193,6 @@ Remember, the text should appear as if it were painted or drawn directly onto th
     sendStatusUpdate(taskId, `Ошибка при применении стиля Пикассо: ${error.message}`);
     throw error;
   }
-}
-
-async function checkTextWithAnthropic(imageBuffer, taskId) {
-  const base64Image = imageBuffer.toString('base64');
-  const analysisMessage = await anthropic.beta.messages.create({
-    model: "claude-3-opus-20240229",
-    max_tokens: 1000,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: "image/png",
-              data: base64Image
-            }
-          },
-          {
-            type: "text",
-            text: "Carefully examine this image. Does it contain the exact text 'Happy Birthday Visaginas'? The text should be clearly visible and a prominent part of the image. Respond with 'Yes' if the exact text is present and clearly visible, or 'No' if it's not. If the text is present but partially obscured or difficult to read, explain why."
-          }
-        ]
-      }
-    ]
-  });
-  const response = analysisMessage.content[0].text.toLowerCase();
-  sendStatusUpdate(taskId, `Результат проверки текста: ${response}`);
-  return response.includes('yes');
 }
 
 async function downloadImage(url) {
