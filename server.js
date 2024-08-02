@@ -231,13 +231,15 @@ async function checkTextWithAnthropic(imageBuffer, taskId) {
           },
           {
             type: "text",
-            text: "Does this image contain the text 'Happy Birthday Visaginas'? Respond with only 'Yes' or 'No'."
+            text: "Carefully examine this image. Does it contain the exact text 'Happy Birthday Visaginas'? The text should be clearly visible and a prominent part of the image. Respond with 'Yes' if the exact text is present and clearly visible, or 'No' if it's not. If the text is present but partially obscured or difficult to read, explain why."
           }
         ]
       }
     ]
   });
-  return analysisMessage.content[0].text.toLowerCase().includes('yes');
+  const response = analysisMessage.content[0].text.toLowerCase();
+  sendStatusUpdate(taskId, `Результат проверки текста: ${response}`);
+  return response.includes('yes');
 }
 
 async function downloadImage(url) {
