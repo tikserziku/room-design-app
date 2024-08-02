@@ -155,43 +155,12 @@ async function applyPicassoStyle(imagePath, taskId) {
     const picassoImageUrl = imageResponse.data[0].url;
     const picassoImageBuffer = await downloadImage(picassoImageUrl);
 
-    sendStatusUpdate(taskId, 'Генерация текста для наложения');
-    const textPrompt = `Create a stylized text image of "Happy Birthday Visaginas" that would fit well with a Picasso-style painting. 
-    The text should be bold, colorful, and slightly abstract, matching Picasso's artistic style. 
-    Make sure the text is large and clearly readable, using contrasting colors to stand out.
-    Design the text to be positioned at the bottom of a larger image.`;
-
-    const textResponse = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: textPrompt,
-      n: 1,
-      size: "1024x1024",  // Используем поддерживаемый размер
-    });
-
-    const textImageUrl = textResponse.data[0].url;
-    const textImageBuffer = await downloadImage(textImageUrl);
-
-    // Обрезаем текстовое изображение до нужной высоты
-    const croppedTextBuffer = await sharp(textImageBuffer)
-      .extract({ left: 0, top: 768, width: 1024, height: 256 })  // Обрезаем нижнюю четверть изображения
-      .toBuffer();
-
-    sendStatusUpdate(taskId, 'Наложение текста на изображение');
-    const finalImage = await sharp(picassoImageBuffer)
-      .composite([
-        {
-          input: croppedTextBuffer,
-          gravity: 'south',  // Размещаем текст внизу изображения
-        }
-      ])
-      .toBuffer();
-
     const generatedDir = path.join(__dirname, 'generated');
     await fs.mkdir(generatedDir, { recursive: true });
     
     const outputFileName = `${taskId}-picasso.png`;
     const outputPath = path.join(generatedDir, outputFileName);
-    await fs.writeFile(outputPath, finalImage);
+    await fs.writeFile(outputPath, picassoImageBuffer);
     
     sendStatusUpdate(taskId, `Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
     return `/generated/${outputFileName}`;
