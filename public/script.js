@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayThumbnail(file);
                 enableGenerateButton();
             } else {
-                alert('Пожалуйста, выберите изображение в формате JPEG или PNG.');
+                alert('Please select a JPEG or PNG image.');
                 e.target.value = '';
             }
         }
@@ -50,13 +50,13 @@ function enableGenerateButton() {
 async function handleGenerateDesign() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput.files.length === 0) {
-        alert('Пожалуйста, сначала выберите фото');
+        alert('Please select a photo first');
         return;
     }
 
     const file = fileInput.files[0];
     if (!isValidImageType(file)) {
-        alert('Пожалуйста, выберите изображение в формате JPEG или PNG.');
+        alert('Please select a JPEG or PNG image.');
         return;
     }
 
@@ -67,7 +67,7 @@ async function handleGenerateDesign() {
     try {
         showProgressBar();
         setProgress(0);
-        displayStatus('Загрузка файла...');
+        displayStatus('Uploading file...');
         
         clearStatusLog();
 
@@ -78,7 +78,7 @@ async function handleGenerateDesign() {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка загрузки');
+            throw new Error(errorData.error || 'Upload error');
         }
 
         const { taskId } = await response.json();
@@ -86,7 +86,7 @@ async function handleGenerateDesign() {
 
         clearResults();
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Error:', error);
         hideProgressBar();
         displayError(error.message);
     }
@@ -116,10 +116,10 @@ socket.on('cardGenerated', (data) => {
 
 function getStatusMessage(status) {
     switch (status) {
-        case 'analyzing': return 'Анализ изображения...';
-        case 'applying style': return 'Применение стиля Пикассо...';
-        case 'completed': return 'Обработка завершена';
-        default: return 'Обработка...';
+        case 'analyzing': return 'Analyzing image...';
+        case 'applying style': return 'Applying Picasso style...';
+        case 'completed': return 'Processing completed';
+        default: return 'Processing...';
     }
 }
 
@@ -132,7 +132,7 @@ function displayGreetingCard(url) {
 
     const img = document.createElement('img');
     img.src = url;
-    img.alt = 'Поздравительная открытка';
+    img.alt = 'Greeting Card';
     img.className = 'w-full rounded-lg shadow-md mb-4';
 
     const textOverlay = document.createElement('div');
@@ -146,7 +146,7 @@ function displayGreetingCard(url) {
     const downloadBtn = document.createElement('a');
     downloadBtn.href = url;
     downloadBtn.download = 'visaginas-birthday-card.png';
-    downloadBtn.textContent = 'Скачать открытку';
+    downloadBtn.textContent = 'Download Card';
     downloadBtn.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded';
     resultsDiv.appendChild(downloadBtn);
 
