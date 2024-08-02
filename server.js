@@ -100,7 +100,6 @@ async function processImageAsync(taskId, imagePath, style) {
     }
   }
 }
-
 async function applyPicassoStyle(imagePath, taskId) {
   try {
     sendStatusUpdate(taskId, 'Начало применения стиля Пикассо');
@@ -142,30 +141,61 @@ async function applyPicassoStyle(imagePath, taskId) {
     const imageAnalysis = analysisMessage.content[0].text;
 
     const openaiPrompt = `Create a new image in the style of Pablo Picasso based on the following description: ${imageAnalysis}. 
-    The image should incorporate cubist elements and bold, abstract shapes typical of Picasso's style. 
-    Importantly, include the text "Happy Birthday Visaginas" prominently within the image. 
-    The text should be large, clearly readable, and artistically integrated into the Picasso-style composition. 
-    Ensure that the text stands out and is a key element of the overall design.`;
+    The image MUST incorporate cubist elements and bold, abstract shapes typical of Picasso's style. 
+    MOST IMPORTANTLY, you MUST include the exact text "Happy Birthday Visaginas" as a prominent and unmissable part of the image. 
+    The text "Happy Birthday Visaginas" should be:
+    1. Large and clearly readable
+    2. Integrated artistically into the Picasso-style composition
+    3. A central focus of the image, not a small or background element
+    4. Possibly broken up or distorted in a cubist style, but still fully readable
+    5. Using contrasting colors to stand out from the background
+    Ensure that the text "Happy Birthday Visaginas" is impossible to miss and is a key element of the overall design. 
+    The image is not complete without this text prominently displayed.`;
 
     sendStatusUpdate(taskId, 'Начинаем генерацию изображения с OpenAI');
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: openaiPrompt,
-      n: 1,
-      size: "1024x1024",
-    });
-
-    sendStatusUpdate(taskId, 'Изображение сгенерировано, проверяем наличие текста');
-    const picassoImageUrl = response.data[0].url;
-    const picassoImageBuffer = await downloadImage(picassoImageUrl);
     
-    // Проверка наличия текста с помощью Anthropic
-    const textPresent = await checkTextWithAnthropic(picassoImageBuffer, taskId);
-    if (!textPresent) {
-      sendStatusUpdate(taskId, 'Текст не обнаружен на изображении, пробуем еще раз');
-      // Здесь можно добавить логику для повторной генерации изображения
-      // Например, рекурсивный вызов applyPicassoStyle или уведомление пользователя
+    let textPresent = false;
+    let attempts = 0;
+    let picassoImageBuffer;
+
+    while (!textPresent && attempts < 3) {
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: openaiPrompt,
+        n: 1,
+        size: "1024x1024",
+      });
+
+      sendStatusUpdate(taskId, `Изображение сгенерировано, проверяем наличие текста (попытка ${attempts + 1})`);
+      const picassoImageUrl = response.data[0].url;
+      picassoImageBuffer = await downloadImage(picassoImageUrl);
+      
+      textPresent = await checkTextWithAnthropic(picassoImageBuffer, taskId);
+      if (!textPresent) {
+        sendStatusUpdate(taskId, `Текст не обнаружен на изображении, пробуем еще раз (попытка ${attempts + 1})`);
+        attempts++;
+      }
     }
+
+    if (!textPresent) {
+      throw new Error('Не удалось сгенерировать изображение с текстом после нескольких попыток');
+    }
+
+    const generatedDir = path.join(__dirname, 'generated');
+    await fs.mkdir(generatedDir, { recursive: true });
+    
+    const outputFileName = `${taskId}-picasso.png`;
+    const outputPath = path.join(generatedDir, outputFileName);
+    await fs.writeFile(outputPath, picassoImageBuffer);
+    
+    sendStatusUpdate(taskId, `Стиль Пикассо успешно применен, файл сохранен: ${outputPath}`);
+    return `/generated/${outputFileName}`;
+  } catch (error) {
+    sendStatusUpdate(taskId, `Ошибка при применении стиля Пикассо: ${error.message}`);
+    throw error;
+  }
+}
+
 
     const generatedDir = path.join(__dirname, 'generated');
     await fs.mkdir(generatedDir, { recursive: true });
