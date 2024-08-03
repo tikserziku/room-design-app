@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     generateButton.addEventListener('click', handleGenerateDesign);
+
+    initializeImageCounter();
 });
 
 function isValidImageType(file) {
@@ -114,6 +116,10 @@ socket.on('cardGenerated', (data) => {
     }
 });
 
+socket.on('updateImageCount', (count) => {
+    updateImageCounter(count);
+});
+
 function getStatusMessage(status) {
     switch (status) {
         case 'analyzing': return 'Analyzing image...';
@@ -189,4 +195,17 @@ function addStatusLogMessage(message) {
 
 function clearStatusLog() {
     document.getElementById('statusLog').innerHTML = '';
+}
+
+function initializeImageCounter() {
+    fetch('/imageCount')
+        .then(response => response.json())
+        .then(data => {
+            updateImageCounter(data.count);
+        })
+        .catch(error => console.error('Error fetching image count:', error));
+}
+
+function updateImageCounter(count) {
+    document.getElementById('imageCountValue').textContent = count;
 }
