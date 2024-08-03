@@ -1,10 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
-const dotenv = require('dotenv');
 const http = require('http');
 const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
