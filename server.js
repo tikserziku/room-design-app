@@ -36,6 +36,7 @@ app.use(express.static('public'));
 app.use('/generated', express.static(path.join(__dirname, 'generated')));
 
 const tasks = new Map();
+let totalGeneratedImages = 0;
 
 io.on('connection', (socket) => {
   console.log('User connected');
@@ -80,6 +81,9 @@ async function processImageAsync(taskId, imagePath, style) {
       processedImageUrl = await applyPicassoStyle(imagePath, taskId);
       tasks.set(taskId, { status: 'applying style', progress: 75 });
       io.emit('taskUpdate', { taskId, status: 'applying style', progress: 75 });
+      
+      totalGeneratedImages++;
+      io.emit('updateImageCount', totalGeneratedImages);
     }
     
     sendStatusUpdate(taskId, 'Processing completed');
@@ -183,6 +187,10 @@ async function downloadImage(url) {
     throw error;
   }
 }
+
+app.get('/imageCount', (req, res) => {
+  res.json({ count: totalGeneratedImages });
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
